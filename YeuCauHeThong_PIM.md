@@ -36,7 +36,17 @@ Xây dựng hệ thống quản lý thông tin sản phẩm tập trung, cho ph�
 ```
 - Mã SKU (duy nhất, tự động sinh hoặc nhập thủ công)
 - Tên sản phẩm
-- Mô tả ngắn gọn
+- Thương hiệu
+- Mô tả sản phẩm
+- Thông tin chung
+- Quy cách
+- Thành phần
+- Công dụng
+- HDSD
+- Bảo quản
+- Lý do phát triển sản phẩm & Xu hướng thị trường
+- Sản phẩm tương tự
+- Ưu điểm cạnh tranh/USP
 - Danh mục sản phẩm
 - Trạng thái (Đang phát triển, Đang bán, Ngừng bán)
 - Ngày tạo
@@ -77,122 +87,184 @@ Xây dựng hệ thống quản lý thông tin sản phẩm tập trung, cho ph�
 
 ### 5.1 Cấu trúc phân loại tài liệu
 
-#### Cấp 1 - Theo phòng ban:
-1. **RnD** - Research & Development
-2. **Marketing** - Marketing
-3. **ECOM** - E-commerce  
-4. **Purchasing** - Mua hàng
-5. **Legal** - Pháp chế
-6. **Warehouse** - Kho
-7. **Communication** - Truyền thông
+#### Mô hình phân quyền tài liệu
+**Nguyên tắc**: Mỗi loại tài liệu có một **phòng ban chủ quản** (Primary Owner) và có thể có các **phòng ban có quyền truy cập** (Secondary Access).
 
-#### Cấp 2 - Theo loại tài liệu:
-1. **Thông tin sản phẩm**
-2. **Hình ảnh/Video gốc**
-3. **Giấy tờ sản phẩm**
-4. **Giấy tờ về các lô hàng**
-5. **Giấy tờ mua hàng**
-6. **Giấy tờ bán hàng**
-7. **Content Marketing**
-8. **Content Truyền thông**
-9. **Thông tin mô tả**
+#### Danh mục loại tài liệu và phòng ban chủ quản
 
-### 5.2 Chi tiết danh mục tài liệu
+| STT | Loại tài liệu | Phòng ban chủ quản | Phòng ban có quyền truy cập | Mô tả |
+|-----|---------------|-------------------|---------------------------|-------|
+| 1 | **Thông tin sản phẩm** | RND | MKT, ECOM | Mô tả chi tiết, thành phần, công dụng |
+| 2 | **Hình ảnh/Video gốc** | RND | MKT, ECOM, COM | Hình ảnh chất lượng cao, video gốc |
+| 3 | **Giấy tờ sản phẩm** | RND | LEG | Giấy công bố, phép quảng cáo, đăng ký lưu hành |
+| 4 | **Giấy tờ về lô hàng** | PUR | WH, LEG | Hợp đồng, hóa đơn, biên bản nhập kho |
+| 5 | **Content Marketing** | MKT | ECOM, COM | Ảnh thiết kế, video quảng cáo, nội dung MKT |
+| 6 | **Content E-commerce** | ECOM | MKT | Mô tả sản phẩm trên nền tảng, hình ảnh ECOM |
+| 7 | **Content Truyền thông** | COM | MKT | Ảnh/video cho PR, thông cáo báo chí |
+| 8 | **Tài liệu pháp lý** | LEG | RND, PUR | Hợp đồng, giấy tờ pháp lý |
+| 9 | **Tài liệu kho bãi** | WH | PUR | Biên bản xuất/nhập kho, báo cáo tồn kho |
 
-| Phòng ban | Phân loại tài liệu | Định dạng | Tên tài liệu | Bắt buộc | Mô tả |
-|-----------|-------------------|-----------|--------------|----------|-------|
-| **RnD** |
-| RnD | Thông tin sản phẩm | Văn bản | Mô tả sản phẩm chi tiết | ✓ | Bao gồm: Thông tin chung, Dạng bào chế, Thành phần, Công dụng, Hướng dẫn sử dụng, Bảo quản, Lý do phát triển, Sản phẩm tương tự, USP |
-| RnD | Hình ảnh/Video gốc | File | Market sản phẩm, ảnh gốc | ✓ | Hình ảnh chất lượng cao của sản phẩm |
-| RnD | Giấy tờ sản phẩm | File | Giấy công bố | | Giấy công bố sản phẩm |
-| RnD | Giấy tờ sản phẩm | File | Giấy phép quảng cáo | | Giấy phép quảng cáo sản phẩm |
-| RnD | Giấy tờ sản phẩm | File | Đăng ký lưu hành | | Giấy đăng ký lưu hành |
-| **Mua hàng** |
-| Purchasing | Giấy tờ về các lô hàng | File | Hợp đồng mua bán | ✓ | Hợp đồng với nhà cung cấp |
-| Purchasing | Giấy tờ về các lô hàng | File | Hóa đơn | ✓ | Hóa đơn mua hàng |
-| Purchasing | Giấy tờ về các lô hàng | File | Packing list | | Danh sách đóng gói |
-| Purchasing | Giấy tờ về các lô hàng | File | Tờ khai hải quan | | TKHQ |
-| Purchasing | Giấy tờ về các lô hàng | File | Giấy chứng nhận xuất xứ | | GCN xuất xứ |
-| Purchasing | Giấy tờ về các lô hàng | File | Vận đơn | | Vận đơn vận chuyển |
-| Purchasing | Giấy tờ về các lô hàng | File | Đơn đặt hàng | ✓ | Đơn đặt hàng |
-| Purchasing | Giấy tờ về các lô hàng | File | Biên bản nhập kho | ✓ | Biên bản nhập kho |
-| **E-commerce** |
-| ECOM | Thông tin mô tả ECOM | File | Thông tin mô tả sản phẩm trên các nền tảng | | Mô tả cho website, app |
-| ECOM | Hình ảnh/Video mô tả | File | Hình ảnh/Video mô tả sản phẩm trên các nền tảng | ✓ | Hình ảnh cho ecommerce |
-| ECOM | Nội dung truyền thông | File | Nội dung đăng tải trên các kênh truyền thông | ✓ | Content cho mạng xã hội |
-| **Marketing** |
-| Marketing | Thông tin mô tả MKT | File | Thông tin mô tả sản phẩm | | Thông tin cho marketing |
-| Marketing | Content MKT | File | Ảnh chụp | ✓ | Ảnh chụp sản phẩm |
-| Marketing | Content MKT | File | Ảnh thiết kế | ✓ | Ảnh thiết kế đồ họa |
-| Marketing | Content MKT | File | Video | | Video quảng cáo |
-| Marketing | Content MKT | File | Nội dung quảng cáo | ✓ | Script, slogan quảng cáo |
-| **Truyền thông** |
-| Communication | Content truyền thông | File | Ảnh | | Ảnh cho PR |
-| Communication | Content truyền thông | File | Video | | Video cho PR |
+### 5.2 Ma trận phân quyền tài liệu chi tiết
+
+#### Quy tắc phân quyền:
+- **Phòng ban chủ quản**: Có quyền Create, Read, Update, Delete
+- **Phòng ban có quyền truy cập**: Có quyền Read, Comment (có thể Update theo cấu hình)
+- **Tài liệu bắt buộc**: Phải được upload trong thời hạn quy định
+
+| Loại tài liệu | Tên tài liệu cụ thể | Định dạng | Chủ quản | Quyền truy cập | Bắt buộc | Thời hạn | Mô tả |
+|---------------|---------------------|-----------|----------|---------------|----------|---------|-------|
+| **Thông tin sản phẩm** |
+| Thông tin sản phẩm | Mô tả sản phẩm chi tiết | Văn bản | RND | MKT, ECOM | ✓ | Ngay khi tạo | Thông tin chung, thành phần, công dụng, HDSD |
+| Thông tin sản phẩm | Thông số kỹ thuật | Văn bản | RND | MKT, ECOM, WH | ✓ | 24h | Quy cách, khối lượng, kích thước |
+| **Hình ảnh/Video gốc** |
+| Hình ảnh/Video gốc | Ảnh sản phẩm gốc | File | RND | MKT, ECOM, COM | ✓ | 24h | Hình ảnh chất lượng cao |
+| Hình ảnh/Video gốc | Video giới thiệu | File | RND | MKT, ECOM, COM | | 72h | Video demo sản phẩm |
+| **Giấy tờ sản phẩm** |
+| Giấy tờ sản phẩm | Giấy công bố | File | RND | LEG | | 30 ngày | Giấy công bố sản phẩm |
+| Giấy tờ sản phẩm | Giấy phép quảng cáo | File | RND | LEG, MKT | | 30 ngày | Giấy phép quảng cáo |
+| Giấy tờ sản phẩm | Đăng ký lưu hành | File | RND | LEG | | 60 ngày | Giấy đăng ký lưu hành |
+| **Giấy tờ về lô hàng** |
+| Giấy tờ về lô hàng | Hợp đồng mua bán | File | PUR | WH, LEG | ✓ | 3 ngày | Hợp đồng với NCC |
+| Giấy tờ về lô hàng | Hóa đơn | File | PUR | WH, LEG | ✓ | 5 ngày | Hóa đơn mua hàng |
+| Giấy tờ về lô hàng | Đơn đặt hàng | File | PUR | WH | ✓ | Ngay khi tạo | Purchase Order |
+| Giấy tờ về lô hàng | Biên bản nhập kho | File | WH | PUR | ✓ | 7 ngày | Biên bản nhập kho |
+| Giấy tờ về lô hàng | Packing list | File | PUR | WH | | 5 ngày | Danh sách đóng gói |
+| Giấy tờ về lô hàng | Vận đơn | File | PUR | WH | | 7 ngày | Vận đơn vận chuyển |
+| **Content Marketing** |
+| Content Marketing | Ảnh chụp sản phẩm | File | MKT | ECOM, COM | ✓ | 48h | Ảnh chụp chuyên nghiệp |
+| Content Marketing | Ảnh thiết kế | File | MKT | ECOM, COM | ✓ | 72h | Ảnh thiết kế đồ họa |
+| Content Marketing | Video quảng cáo | File | MKT | ECOM, COM | | 7 ngày | Video marketing |
+| Content Marketing | Script quảng cáo | Văn bản | MKT | ECOM, COM | ✓ | 48h | Nội dung quảng cáo |
+| **Content E-commerce** |
+| Content E-commerce | Mô tả sản phẩm web | Văn bản | ECOM | MKT | ✓ | 48h | Mô tả cho website |
+| Content E-commerce | Hình ảnh ECOM | File | ECOM | MKT | ✓ | 72h | Ảnh cho nền tảng bán hàng |
+| **Content Truyền thông** |
+| Content Truyền thông | Ảnh PR | File | COM | MKT | | 48h | Ảnh cho quan hệ công chúng |
+| Content Truyền thông | Video PR | File | COM | MKT | | 72h | Video cho truyền thông |
+| Content Truyền thông | Thông cáo báo chí | Văn bản | COM | MKT, LEG | | 24h | Press release |
 
 ### 5.3 Thuộc tính tài liệu
 ```
 - ID tài liệu (duy nhất)
 - Tên tài liệu
 - Loại tài liệu (văn bản, hình ảnh, video, file)
-- Phòng ban sở hữu
-- Danh mục (cấp 1, cấp 2)
+- Phòng ban chủ quản (Primary Owner)
+- Danh sách phòng ban có quyền truy cập (Secondary Access)
+- Cấp độ quyền truy cập (Read Only, Read+Comment, Read+Edit)
+- Danh mục tài liệu
 - SKU sản phẩm liên quan
 - Mã lô hàng liên quan (nếu có)
 - Đường dẫn file/nội dung
 - Phiên bản (version)
-- Trạng thái (Draft, Published, Archived)
+- Trạng thái (Active, Archived)
 - Bắt buộc (có/không)
+- Thời hạn hoàn thành (nếu bắt buộc)
 - Ngày tạo
 - Người tạo
-- Ngày cập nhật
-- Người cập nhật
+- Ngày cập nhật cuối
+- Người cập nhật cuối
 - Ghi chú
 ```
 
-### 5.4 Quản lý phiên bản (Version Control)
-- Tự động tạo phiên bản mới khi cập nhật
-- Lưu trữ lịch sử thay đổi
-- Cho phép xem và khôi phục phiên bản cũ
-- So sánh giữa các phiên bản
+### 5.4 Quản lý phiên bản (Version Control) đơn giản
+
+#### 5.4.1 Workflow phiên bản theo phân quyền
+**A. Primary Owner:**
+- Toàn quyền tạo, sửa, xóa tài liệu
+- Quản lý phân quyền cho phòng ban khác
+
+**B. Secondary Access:**
+- **Read Only**: Chỉ xem và tải xuống
+- **Read + Comment**: Xem, tải xuống, và để lại comment
+- **Read + Edit**: Xem, tải xuống, và chỉnh sửa trực tiếp
+
+#### 5.4.2 Tính năng Version Control
+- **Auto-versioning**: Tự động tạo version mới khi có thay đổi
+- **Simple edit**: Chỉnh sửa trực tiếp, không cần approval
+- **Rollback capability**: Khôi phục version trước đó
+- **Change tracking**: Theo dõi chi tiết từng thay đổi và người thực hiện
+- **Lock mechanism**: Tránh xung đột khi nhiều người cùng chỉnh sửa
+
+#### 5.4.3 Notification System
+- **Real-time alerts** khi có version mới
+- **Change notifications** tới tất cả người có quyền truy cập
+- **Deadline reminders** cho tài liệu bắt buộc
 
 ## 6. HỆ THỐNG PHÂN QUYỀN
 
-### 6.1 Vai trò và quyền hạn
+### 6.1 Vai trò và quyền hạn theo mô hình Primary Owner + Secondary Access
 
 #### 6.1.1 Super Admin
 - Toàn quyền trên hệ thống
 - Quản lý phòng ban, người dùng
-- Cấu hình hệ thống
+- Cấu hình hệ thống và phân quyền
 - Xem tất cả tài liệu
+- Thiết lập quy tắc Primary Owner và Secondary Access
 
-#### 6.1.2 Department Admin
-- Quản lý tài liệu của phòng ban
-- Thêm/sửa/xóa tài liệu phòng ban
-- Phân quyền cho nhân viên trong phòng
-- Xem báo cáo phòng ban
+#### 6.1.2 Department Admin (Primary Owner)
+**Với tài liệu phòng ban chủ quản:**
+- Toàn quyền: Create, Read, Update, Delete
+- Phân quyền cho phòng ban khác truy cập
+- Cấu hình mức độ quyền truy cập
 
-#### 6.1.3 Department User
-- Xem tài liệu của phòng ban
-- Thêm/sửa tài liệu (theo phân quyền)
-- Upload file
-- Tạo version mới
+**Với tài liệu có quyền truy cập:**
+- Read, Comment, Edit (theo cấu hình được phân quyền)
 
-#### 6.1.4 View Only
-- Chỉ xem tài liệu được phân quyền
-- Không thể chỉnh sửa
+#### 6.1.3 Department User (Primary Owner)
+**Với tài liệu phòng ban chủ quản:**
+- Create, Read, Update, Disable
+- Upload và quản lý version
 
-### 6.2 Ma trận phân quyền
+**Với tài liệu có quyền truy cập:**
+- Read, Comment, Edit (theo cấu hình được phân quyền)
 
-| Chức năng | Super Admin | Dept Admin | Dept User | View Only |
-|-----------|-------------|------------|-----------|-----------|
-| Quản lý phòng ban | ✓ | ✗ | ✗ | ✗ |
-| Quản lý sản phẩm | ✓ | ✓ | ✓ | ✗ |
-| Quản lý lô hàng | ✓ | ✓ | ✓ | ✗ |
-| Xem tài liệu phòng ban | ✓ | ✓ | ✓ | ✓ |
-| Sửa tài liệu phòng ban | ✓ | ✓ | ✓ | ✗ |
-| Xem tài liệu phòng ban khác | ✓ | ✗ | ✗ | ✗ |
-| Quản lý người dùng | ✓ | ✓ | ✗ | ✗ |
+#### 6.1.4 Cross-Department User (Secondary Access)
+**Quyền hạn theo cấu hình:**
+- **Read Only**: Chỉ xem và download
+- **Read + Comment**: Xem, download, comment
+- **Read + Edit**: Xem, download, chỉnh sửa trực tiếp
+
+#### 6.1.5 View Only
+- Xem tài liệu được phân quyền cụ thể
+- Không có quyền tải xuống hoặc chỉnh sửa
+- Thường dùng cho external stakeholders
+
+### 6.2 Ma trận phân quyền chi tiết
+
+#### 6.2.1 Quyền hệ thống cơ bản
+| Chức năng | Super Admin | Dept Admin | Dept User | Cross-Dept User | View Only |
+|-----------|-------------|------------|-----------|-----------------|-----------|
+| Quản lý phòng ban | ✓ | ✗ | ✗ | ✗ | ✗ |
+| Quản lý người dùng | ✓ | ✓* | ✗ | ✗ | ✗ |
+| Cấu hình hệ thống | ✓ | ✗ | ✗ | ✗ | ✗ |
+| Xem dashboard tổng quan | ✓ | ✓ | ✓ | ✓** | ✗ |
+
+#### 6.2.2 Quyền quản lý sản phẩm và lô hàng
+| Chức năng | Super Admin | Primary Owner | Secondary Access | View Only |
+|-----------|-------------|---------------|------------------|-----------|
+| Tạo sản phẩm mới | ✓ | ✓ | ✗ | ✗ |
+| Chỉnh sửa thông tin sản phẩm | ✓ | ✓ | ✓* | ✗ |
+| Xóa sản phẩm | ✓ | ✓** | ✗ | ✗ |
+| Xem thông tin sản phẩm | ✓ | ✓ | ✓ | ✓*** |
+| Tạo lô hàng | ✓ | ✓ | ✗ | ✗ |
+| Cập nhật lô hàng | ✓ | ✓ | ✓* | ✗ |
+
+#### 6.2.3 Quyền quản lý tài liệu (theo Primary/Secondary Model)
+| Chức năng | Super Admin | Primary Owner | Secondary (R) | Secondary (R+C) | Secondary (R+E) |
+|-----------|-------------|---------------|---------------|----------------|-----------------|
+| Tạo tài liệu mới | ✓ | ✓ | ✗ | ✗ | ✗ |
+| Upload file | ✓ | ✓ | ✗ | ✗ | ✓ |
+| Chỉnh sửa nội dung | ✓ | ✓ | ✗ | ✗ | ✓ |
+| Xóa tài liệu | ✓ | ✓ | ✗ | ✗ | ✗ |
+| Xem tài liệu | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Tải xuống | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Comment/Feedback | ✓ | ✓ | ✗ | ✓ | ✓ |
+| Phân quyền truy cập | ✓ | ✓ | ✗ | ✗ | ✗ |
+
+**Chú thích:**
+- `*` Nếu có quyền Read+Edit
+- `**` Cần confirm từ Super Admin nếu có tài liệu liên quan
+- `***` Theo danh sách được phân quyền
 
 ## 7. GIAO DIỆN NGƯỜI DÙNG
 
@@ -243,16 +315,39 @@ Xây dựng hệ thống quản lý thông tin sản phẩm tập trung, cho ph�
 - Form thêm/sửa lô hàng
 - Liên kết với tài liệu bắt buộc
 
-#### 7.1.5 Quản lý tài liệu
-- Cây thư mục theo phòng ban và danh mục
-- Upload/download file
-- Quản lý version
-- Preview file (hình ảnh, PDF)
+#### 7.1.5 Quản lý tài liệu với Cross-Department Access
+**A. Document Tree View**
+```
+📁 Tài liệu theo phòng ban
+├── 📂 RND (Primary Owner) - 125 tài liệu
+│   ├── 📄 Thông tin sản phẩm (🔓 MKT, ECOM có thể xem)  
+│   └── 📄 Giấy tờ sản phẩm (🔓 LEG có thể xem)
+├── 📂 MKT (Primary Owner) - 89 tài liệu  
+│   ├── 📄 Content Marketing (🔓 ECOM, COM có thể xem)
+│   └── 📄 Script quảng cáo (🔓 ECOM, COM có thể edit)
+└── 📂 Cross-Access View - Tài liệu tôi có quyền truy cập
+    ├── 📄 Từ RND: Thông tin sản phẩm (Read Only)
+    └── 📄 Từ MKT: Content Marketing (Read + Comment)
+```
 
-#### 7.1.6 Quản lý người dùng
-- Danh sách người dùng
-- Phân quyền theo phòng ban
-- Lịch sử hoạt động
+**B. Advanced Features**
+- **Smart filtering**: Lọc theo quyền truy cập (Own/Primary/Secondary)
+- **Permission indicators**: Icon hiển thị mức độ quyền hạn
+- **Collaboration panel**: Theo dõi hoạt động cross-department
+- **Version comparison**: So sánh versions với highlight changes
+
+#### 7.1.6 Quản lý phân quyền Cross-Department
+**A. Permission Management Matrix**
+- Thiết lập Primary Owner cho từng loại tài liệu
+- Cấu hình Secondary Access (Read/Comment/Edit) 
+- Bulk permission assignment
+- Permission inheritance rules
+
+**B. Access Control Panel**
+- Quản lý quyền truy cập theo phòng ban
+- Thiết lập default permissions cho loại tài liệu
+- Monitor hoạt động cross-department
+- Notification settings
 
 ### 7.2 Giao diện người dùng (User Portal)
 
@@ -262,30 +357,45 @@ Xây dựng hệ thống quản lý thông tin sản phẩm tập trung, cho ph�
 - Thống kê hoạt động của bản thân
 - Shortcut đến các chức năng thường dùng
 
-**B. My Tasks (Nhiệm vụ của tôi)**
+**B. My Tasks đơn giản**
 ```
 ┌─ MY TASKS ────────────────────────────────────────┐
-│ 🔥 Urgent (3):                                    │
+│ 🔥 Urgent Tasks (3):                              │
 │ • SKU001: Upload hợp đồng mua bán (Quá hạn 2 ngày) │
 │ • SKU002: Cập nhật mô tả sản phẩm (Hôm nay)       │
 │                                                   │
 │ ⏰ This Week (5):                                 │  
-│ • SKU003: Review giấy phép quảng cáo              │
-│ • SKU004: Upload ảnh sản phẩm mới                 │
+│ • SKU003: Hoàn thiện ảnh sản phẩm                 │
+│ • SKU004: Cập nhật thông tin lô hàng              │
+│ • SKU005: Review tài liệu từ phòng khác           │
 │                                                   │
-│ [Mark as Done] [Request Extension] [View Details]  │
+│ [Mark Complete] [Edit] [View Details] [Archive]    │
 └───────────────────────────────────────────────────┘
 ```
 
-**C. Notifications Center**
-- Thông báo real-time
-- Lọc theo mức độ ưu tiên
-- Đánh dấu đã đọc/chưa đọc
+**C. Cross-Department Activity Center**
+```
+┌─ RECENT ACTIVITIES ───────────────────────────────┐
+│ � Documents I Can Edit:                          │
+│ • MKT Content: SKU001 Marketing materials         │
+│ • RnD Info: SKU002 Product descriptions           │
+│                                                   │
+│ � Recently Viewed:                               │
+│ • Legal docs from LEG department                  │
+│ • Warehouse reports from WH                       │
+│                                                   │
+│ 💬 Comments & Discussions:                        │
+│ • 3 new comments on SKU005                        │
+│                                                   │
+│ [View All] [Filter by Department] [Search]        │
+└───────────────────────────────────────────────────┘
+```
 
-**D. Quick Stats**
-- Completion rate của bản thân
-- So sánh với trung bình phòng ban
-- Achievement badges
+**D. Enhanced Quick Stats**
+- **Primary Owner Performance**: Documents owned và completion rate
+- **Secondary Access Activity**: Contributions to other departments 
+- **Cross-Department Score**: Collaboration effectiveness
+- **Response Time**: Thời gian phản hồi requests trung bình
 
 #### 7.2.2 Quản lý sản phẩm
 - Xem danh sách sản phẩm được phân quyền
@@ -297,11 +407,34 @@ Xây dựng hệ thống quản lý thông tin sản phẩm tập trung, cho ph�
 - Cập nhật thông tin lô hàng
 - Upload tài liệu lô hàng
 
-#### 7.2.4 Thư viện tài liệu
-- Duyệt tài liệu theo cây thư mục
-- Tìm kiếm tài liệu
-- Download/preview file
-- Xem lịch sử version
+#### 7.2.4 Thư viện tài liệu Cross-Department
+**A. Multi-View Document Library**
+```
+📚 MY DOCUMENT LIBRARY
+
+┌─ VIEW MODES ──────────────────────────────────────┐
+│ [📁 By Department] [🏷️ By Category] [⏰ By Due Date] │
+│ [🔒 By Permission] [👤 By Owner] [📊 By Status]     │
+└───────────────────────────────────────────────────┘
+
+┌─ DOCUMENTS I OWN (Primary) ──────────────────────┐
+│ 📄 SKU001_Contract.pdf        PUR → WH, LEG      │
+│ 📄 SKU002_Invoice.pdf         PUR → WH           │  
+│ 📸 Product_Photo_A.jpg        MKT → ECOM, COM    │
+└───────────────────────────────────────────────────┘
+
+┌─ DOCUMENTS I CAN ACCESS (Secondary) ─────────────┐
+│ 📋 Product_Description.docx   RND → [Read+Edit]   │
+│ 🎬 Marketing_Video.mp4        MKT → [Read Only]   │
+│ 📊 Compliance_Report.xlsx     LEG → [Read+Comment]│
+└───────────────────────────────────────────────────┘
+```
+
+**B. Smart Features**
+- **Permission-based filtering**: Tự động lọc theo quyền truy cập
+- **Cross-reference linking**: Liên kết tài liệu liên quan giữa phòng ban
+- **Collaborative preview**: Multi-user preview với real-time comments
+- **Smart notifications**: Alerts khi có updates từ documents được follow
 
 ## 8. YÊU CẦU KỸ THUẬT
 
@@ -647,10 +780,10 @@ def push_to_lark_base(table_name, data):
 - Task assignment và tracking
 - SLA monitoring
 
-#### 8.1.5 Notification và workflow
-- Thông báo khi có tài liệu mới
-- Nhắc nhở cập nhật tài liệu bắt buộc
-- Workflow phê duyệt tài liệu
+#### 8.1.5 Notification system đơn giản
+- Thông báo khi có tài liệu mới được tạo/cập nhật
+- Nhắc nhở cập nhật tài liệu bắt buộc theo deadline
+- Alert khi có thay đổi trong tài liệu có quyền truy cập
 - Integration với hệ thống kiểm tra tự động
 - **Push notifications qua Lark Bot**
 
@@ -816,8 +949,8 @@ ATTENTION NEEDED:
 **C. Collaboration Features**
 - Task assignment directly từ Lark Base
 - Status updates sync ngược lại PIM
-- Document approval workflow
-- Cross-department visibility
+- Real-time document sharing
+- Cross-department visibility và comments
 
 #### 9.4.4 Sample Lark Base Views
 
@@ -867,8 +1000,8 @@ Priority | SKU   | Document Missing    | Days Overdue | Owner    | Status
 - **Dashboard cảnh báo real-time**
 
 ### Phase 3 (1-2 tháng)
-- Workflow và notification
-- Mobile responsive
+- Simple notification system
+- Mobile responsive design
 - **Comprehensive reporting system**
 - **Configurable check rules**
 - **Lark Base API integration - Basic sync**
