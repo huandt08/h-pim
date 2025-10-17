@@ -1,28 +1,28 @@
-# TÍCH HỢP LARK BASE CHO HỆ THỐNG PIM - CẬP NHẬT MỚI NHẤT
+# TÍCH HỢP LARK BASE CHO HỆ THỐNG PIM - LARAVEL + REACT IMPLEMENTATION
 
 ## 1. TỔNG QUAN TÍCH HỢP
 
 ### 1.1 Mục đích tích hợp theo mô hình Primary Owner + Secondary Access
-- **Báo cáo thời gian thực**: Đẩy dữ liệu từ PIM sang Lark Base với phân quyền rõ ràng theo phòng ban
+- **Báo cáo thời gian thực**: Đẩy dữ liệu từ PIM (Laravel Backend) sang Lark Base với phân quyền rõ ràng theo phòng ban
 - **Department Responsibility Tracking**: Theo dõi trách nhiệm từng phòng ban (Primary Owner vs Secondary Access)
 - **Smart Notifications**: Thông báo có định tuyến theo phòng ban chịu trách nhiệm
 - **Executive Visibility**: Dashboard cấp cao với phân tích cross-department collaboration
 - **Mobile Access**: Truy cập báo cáo và nhận thông báo qua Lark mobile app
 
-### 1.2 Kiến trúc tổng thể mới
+### 1.2 Kiến trúc tổng thể Laravel + React Architecture
 ```
-┌─────────────┐    Smart API   ┌─────────────┐    Dept-based  ┌─────────────┐
-│ PIM System  │ ──────────────→ │ Lark Base   │ ──────────────→ │ Lark Bot    │
-│ (Dept-aware)│                │ Tables      │   Notifications │ (Per Dept)  │
-└─────────────┘                └─────────────┘                └─────────────┘
-       │                              │                              │
-       │   Department-based           │      Department-specific     │
-       ▼   Sync Rules                 ▼      Dashboard Views        ▼
-┌─────────────┐                ┌─────────────┐                ┌─────────────┐
-│ Background  │                │ Executive   │                │ Dept Chat   │
-│ Jobs        │                │ Dashboard   │                │ Groups      │
-│ + Routing   │                │ + Dept Views│                │ + @mentions │
-└─────────────┘                └─────────────┘                └─────────────┘
+┌──────────────────┐    Laravel API    ┌─────────────┐    Dept-based  ┌─────────────┐
+│ React Frontend   │ ←──────────────── │ Lark Base   │ ──────────────→ │ Lark Bot    │
+│ (Ant Design)     │                   │ Tables      │   Notifications │ (Per Dept)  │
+└──────────────────┘                   └─────────────┘                └─────────────┘
+         ↕                                     ↑                              │
+    REST API Calls                     Laravel Jobs                          │
+         ↕                                     │                              ▼
+┌──────────────────┐    Queue Jobs     ┌─────────────┐                ┌─────────────┐
+│ Laravel Backend  │ ──────────────→   │ Executive   │                │ Dept Chat   │
+│ + Filament Admin │                   │ Dashboard   │                │ Groups      │
+│ + Queue Workers  │                   │ + Dept Views│                │ + @mentions │
+└──────────────────┘                   └─────────────┘                └─────────────┘
 ```
 
 ## 2. CẤU TRÚC LARK BASE THEO MÔ HÌNH MỚI
@@ -121,107 +121,515 @@
 | team_capacity | Number | Sức chứa team (%) | `fld_team_capacity` |
 | recommended_actions | Long Text | Đề xuất hành động | `fld_recommended_actions` |
 
-## 3. API INTEGRATION THEO MÔ HÌNH MỚI
+## 3. LARAVEL BACKEND API INTEGRATION
 
-### 3.1 Authentication Setup với phân quyền theo phòng ban
+### 3.1 Laravel Configuration Setup với Department Routing
 
-```python
-# config/lark_config.py
-LARK_CONFIG = {
-    'app_id': 'cli_xxxxxxxxxxxxx',
-    'app_secret': 'xxxxxxxxxxxxxxxxxxxx',
-    'base_token': 'bascnxxxxxxxxxxxxxxxxxx',
-    'department_mapping': {
-        'RND': 'Research & Development',
-        'MKT': 'Marketing', 
-        'ECOM': 'E-commerce',
-        'PUR': 'Purchasing',
-        'LEG': 'Legal',
-        'WH': 'Warehouse',
-        'COM': 'Communication'
-    },
-    'notification_groups': {
-        'RND': 'oc_xxxxxxxxxxxxx',  # Group chat ID cho phòng RND
-        'MKT': 'oc_xxxxxxxxxxxxx',  # Group chat ID cho phòng Marketing
-        'PUR': 'oc_xxxxxxxxxxxxx',  # Group chat ID cho phòng Purchasing
-        # ... các phòng ban khác
+```php
+// config/lark.php
+<?php
+
+return [
+    'app_id' => env('LARK_APP_ID', 'cli_xxxxxxxxxxxxx'),
+    'app_secret' => env('LARK_APP_SECRET', 'xxxxxxxxxxxxxxxxxxxx'),
+    'base_token' => env('LARK_BASE_TOKEN', 'bascnxxxxxxxxxxxxxxxxxx'),
+    
+    'department_mapping' => [
+        'RND' => 'Research & Development',
+        'MKT' => 'Marketing',
+        'ECOM' => 'E-commerce',
+        'PUR' => 'Purchasing',
+        'LEG' => 'Legal',
+        'WH' => 'Warehouse',
+        'COM' => 'Communication'
+    ],
+    
+    'notification_groups' => [
+        'RND' => env('LARK_GROUP_RND', 'oc_xxxxxxxxxxxxx'),
+        'MKT' => env('LARK_GROUP_MKT', 'oc_xxxxxxxxxxxxx'),
+        'PUR' => env('LARK_GROUP_PUR', 'oc_xxxxxxxxxxxxx'),
+        // ... các phòng ban khác
+    ],
+    
+    'api_endpoints' => [
+        'base_api' => 'https://open.larksuite.com/open-apis/bitable/v1',
+        'bot_api' => 'https://open.larksuite.com/open-apis/im/v1',
+        'auth_api' => 'https://open.larksuite.com/open-apis/auth/v3'
+    ]
+];
+```
+
+### 3.2 Laravel Service Classes cho Lark Integration
+
+#### 3.2.1 LarkBaseService - Main Integration Service
+```php
+// app/Services/LarkBaseService.php
+<?php
+
+namespace App\Services;
+
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
+use Carbon\Carbon;
+
+class LarkBaseService
+{
+    private $appId;
+    private $appSecret;
+    private $baseToken;
+    private $apiBase;
+
+    public function __construct()
+    {
+        $this->appId = config('lark.app_id');
+        $this->appSecret = config('lark.app_secret');
+        $this->baseToken = config('lark.base_token');
+        $this->apiBase = config('lark.api_endpoints.base_api');
+    }
+
+    /**
+     * Get access token với caching
+     */
+    public function getAccessToken(): string
+    {
+        return Cache::remember('lark_access_token', 7000, function () {
+            $response = Http::post(config('lark.api_endpoints.auth_api') . '/tenant_access_token/internal', [
+                'app_id' => $this->appId,
+                'app_secret' => $this->appSecret
+            ]);
+
+            $data = $response->json();
+
+            if ($data['code'] !== 0) {
+                throw new \Exception('Failed to get Lark access token: ' . $data['msg']);
+            }
+
+            return $data['tenant_access_token'];
+        });
+    }
+
+    /**
+     * Update product với department information
+     */
+    public function updateProductWithDepartmentInfo(string $sku, array $departmentData): array
+    {
+        $recordId = $this->findProductRecord($sku);
+        
+        $updateData = [
+            'fields' => [
+                'fld_primary_dept' => $departmentData['primary_owner_department'],
+                'fld_secondary_depts' => $departmentData['secondary_access_departments'],
+                'fld_responsible_person' => $departmentData['primary_responsible_person'],
+                'fld_compliance_pct' => $departmentData['compliance_percentage'],
+                'fld_critical_alerts' => $departmentData['critical_alerts_count'],
+                'fld_last_updated' => now()->toISOString()
+            ]
+        ];
+
+        $response = Http::withToken($this->getAccessToken())
+            ->put("{$this->apiBase}/apps/{$this->baseToken}/tables/tbl_products_overview/records/{$recordId}", $updateData);
+
+        return $response->json();
+    }
+
+    /**
+     * Create department alert trong Lark Base
+     */
+    public function createDepartmentAlert(array $alertData): array
+    {
+        $recordData = [
+            'fields' => [
+                'fld_alert_id' => $alertData['id'],
+                'fld_created_date' => Carbon::parse($alertData['created_at'])->format('Y-m-d'),
+                'fld_priority' => $alertData['priority'],
+                'fld_sku_link' => [$this->findProductRecord($alertData['sku'])],
+                'fld_responsible_dept' => $alertData['primary_responsible_department'],
+                'fld_involved_depts' => $alertData['secondary_involved_departments'],
+                'fld_alert_message' => "[{$alertData['primary_responsible_department']}] {$alertData['message']}",
+                'fld_due_date' => $alertData['due_date'] ? Carbon::parse($alertData['due_date'])->format('Y-m-d') : null,
+                'fld_primary_assigned' => $alertData['primary_assigned_person'],
+                'fld_secondary_notified' => $alertData['secondary_notified_persons'],
+                'fld_status' => 'New'
+            ]
+        ];
+
+        $response = Http::withToken($this->getAccessToken())
+            ->post("{$this->apiBase}/apps/{$this->baseToken}/tables/tbl_dept_alert_monitor/records", [
+                'records' => [$recordData]
+            ]);
+
+        return $response->json();
+    }
+
+    /**
+     * Batch update department performance
+     */
+    public function batchUpdateDepartmentPerformance(array $departments): array
+    {
+        $records = collect($departments)->map(function ($metrics, $deptCode) {
+            return [
+                'fields' => [
+                    'fld_report_date' => now()->format('Y-m-d'),
+                    'fld_department' => $deptCode,
+                    'fld_primary_products' => $metrics['primary_owner_products'],
+                    'fld_secondary_products' => $metrics['secondary_access_products'],
+                    'fld_total_responsibilities' => $metrics['total_responsibilities'],
+                    'fld_compliant_primary' => $metrics['compliant_primary_tasks'],
+                    'fld_compliant_secondary' => $metrics['compliant_secondary_tasks'],
+                    'fld_overall_compliance' => round($metrics['overall_compliance_score'], 2),
+                    'fld_primary_compliance' => round($metrics['primary_compliance_score'], 2),
+                    'fld_secondary_compliance' => round($metrics['secondary_compliance_score'], 2),
+                    'fld_critical_primary' => $metrics['critical_alerts_primary'],
+                    'fld_critical_secondary' => $metrics['critical_alerts_secondary'],
+                    'fld_avg_response' => round($metrics['avg_response_time_hours'], 1),
+                    'fld_collaboration_score' => round($metrics['cross_dept_collaboration_score'], 2),
+                    'fld_trend' => $this->determineTrendDirection($metrics),
+                    'fld_actions' => $this->generateImprovementActions($metrics)
+                ]
+            ];
+        })->values()->toArray();
+
+        $response = Http::withToken($this->getAccessToken())
+            ->post("{$this->apiBase}/apps/{$this->baseToken}/tables/tbl_dept_performance/records/batch_create", [
+                'records' => $records
+            ]);
+
+        return $response->json();
+    }
+
+    private function findProductRecord(string $sku): ?string
+    {
+        // Implementation to find product record ID by SKU
+        $response = Http::withToken($this->getAccessToken())
+            ->get("{$this->apiBase}/apps/{$this->baseToken}/tables/tbl_products_overview/records", [
+                'filter' => "fld_sku=\"{$sku}\""
+            ]);
+
+        $data = $response->json();
+        return $data['data']['records'][0]['record_id'] ?? null;
     }
 }
-
-# API Endpoints với department routing
-LARK_BASE_API = "https://open.larksuite.com/open-apis/bitable/v1"
-LARK_BOT_API = "https://open.larksuite.com/open-apis/im/v1"
 ```
 
-### 3.2 Data Sync Functions với Department Responsibility
+### 3.3 Laravel Jobs cho Department-aware Data Sync
 
-#### 3.2.1 Products Sync với Primary Owner + Secondary Access
-```python
-def sync_products_to_lark():
-    """
-    Đồng bộ thông tin sản phẩm với Primary Owner + Secondary Access
-    """
-    # Lấy dữ liệu từ PIM database với department responsibility
-    products = get_products_with_department_responsibility()
-    
-    # Format data cho Lark Base với Primary Owner + Secondary Access model
-    lark_records = []
-    for product in products:
-        record = {
-            "fields": {
-                "fld_sku": product.sku,
-                "fld_product_name": product.name,
-                "fld_primary_dept": product.primary_owner_department,
-                "fld_secondary_depts": product.secondary_access_departments,
-                "fld_product_status": product.status,
-                "fld_total_docs": product.total_documents,
-                "fld_required_docs": product.required_documents,
-                "fld_completed_docs": product.completed_documents,
-                "fld_compliance_pct": round(product.compliance_percentage, 2),
-                "fld_critical_alerts": product.critical_alerts_count,
-                "fld_warning_alerts": product.warning_alerts_count,
-                "fld_responsible_person": product.primary_responsible_person,
-                "fld_last_updated": product.updated_at.isoformat(),
-                "fld_next_review": calculate_next_review_date(product)
-            }
+#### 3.3.1 Products Sync Job với Primary Owner + Secondary Access
+```php
+// app/Jobs/SyncProductsToLarkJob.php
+<?php
+
+namespace App\Jobs;
+
+use App\Models\Product;
+use App\Services\LarkBaseService;
+use App\Services\DepartmentService;
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Log;
+
+class SyncProductsToLarkJob implements ShouldQueue
+{
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+
+    public function __construct()
+    {
+        //
+    }
+
+    public function handle(LarkBaseService $larkService, DepartmentService $deptService): void
+    {
+        Log::info('Starting products sync to Lark Base');
+
+        try {
+            // Lấy products với department responsibility information
+            $products = Product::with(['category', 'documents', 'alerts'])
+                ->where('status', '!=', 'archived')
+                ->get();
+
+            $larkRecords = $products->map(function ($product) use ($deptService) {
+                $complianceData = $deptService->calculateProductCompliance($product);
+                
+                return [
+                    'fields' => [
+                        'fld_sku' => $product->code,
+                        'fld_product_name' => $product->name,
+                        'fld_primary_dept' => $product->primary_owner_department,
+                        'fld_secondary_depts' => $product->secondary_access_departments ?? [],
+                        'fld_product_status' => ucfirst($product->status),
+                        'fld_total_docs' => $product->documents()->count(),
+                        'fld_required_docs' => $deptService->getRequiredDocumentsCount($product),
+                        'fld_completed_docs' => $product->documents()->where('status', 'approved')->count(),
+                        'fld_compliance_pct' => round($complianceData['compliance_percentage'], 2),
+                        'fld_critical_alerts' => $product->alerts()->where('priority', 'critical')->count(),
+                        'fld_warning_alerts' => $product->alerts()->where('priority', 'warning')->count(),
+                        'fld_responsible_person' => $product->primary_responsible_person,
+                        'fld_last_updated' => $product->updated_at->toISOString(),
+                        'fld_next_review' => $deptService->calculateNextReviewDate($product)->format('Y-m-d')
+                    ]
+                ];
+            })->toArray();
+
+            // Batch update to Lark Base
+            $result = $larkService->batchUpdateTable('tbl_products_overview', $larkRecords);
+
+            Log::info('Products sync completed', [
+                'records_processed' => count($larkRecords),
+                'success' => $result['code'] === 0
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Products sync failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            throw $e;
         }
-        lark_records.append(record)
-    
-    # Batch update to Lark Base với department-aware routing
-    return batch_update_lark_table("tbl_products_overview", lark_records)
+    }
+}
 ```
 
-#### 3.2.2 Department Alert Sync với Smart Routing
-```python
-def sync_department_alerts_to_lark():
-    """
-    Đồng bộ cảnh báo với phân định rõ ràng trách nhiệm phòng ban
-    """
-    # Lấy alerts mới trong 24h qua với department routing
-    alerts = get_recent_alerts_with_department_routing(hours=24)
-    
-    lark_records = []
-    for alert in alerts:
-        record = {
-            "fields": {
-                "fld_alert_id": alert.id,
-                "fld_created_date": alert.created_at.date().isoformat(),
-                "fld_priority": map_priority(alert.priority),
-                "fld_sku_link": [get_product_record_id(alert.sku)],
-                "fld_responsible_dept": alert.primary_responsible_department,
-                "fld_involved_depts": alert.secondary_involved_departments,
-                "fld_doc_type": alert.document_type,
-                "fld_alert_message": f"[{alert.primary_responsible_department}] {alert.message}",
-                "fld_due_date": alert.due_date.isoformat() if alert.due_date else None,
-                "fld_days_overdue": alert.days_overdue,
-                "fld_primary_assigned": alert.primary_assigned_person,
-                "fld_secondary_notified": alert.secondary_notified_persons,
-                "fld_status": "New"
+#### 3.3.2 Department Alert Sync Job
+```php
+// app/Jobs/SyncDepartmentAlertsJob.php
+<?php
+
+namespace App\Jobs;
+
+use App\Models\Alert;
+use App\Services\LarkBaseService;
+use App\Services\NotificationService;
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\SerializesModels;
+use Carbon\Carbon;
+
+class SyncDepartmentAlertsJob implements ShouldQueue
+{
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+
+    public function handle(LarkBaseService $larkService, NotificationService $notificationService): void
+    {
+        // Lấy alerts mới trong 24h qua với department routing
+        $alerts = Alert::with(['product'])
+            ->where('created_at', '>=', now()->subHours(24))
+            ->where('sync_status', '!=', 'synced')
+            ->get();
+
+        foreach ($alerts as $alert) {
+            $alertData = [
+                'id' => $alert->id,
+                'created_at' => $alert->created_at,
+                'priority' => $this->mapPriority($alert->priority),
+                'sku' => $alert->product->code,
+                'primary_responsible_department' => $alert->primary_responsible_department,
+                'secondary_involved_departments' => $alert->secondary_involved_departments ?? [],
+                'document_type' => $alert->document_type,
+                'message' => $alert->message,
+                'due_date' => $alert->due_date,
+                'days_overdue' => $alert->days_overdue,
+                'primary_assigned_person' => $alert->primary_assigned_person,
+                'secondary_notified_persons' => $alert->secondary_notified_persons ?? []
+            ];
+
+            // Create alert record in Lark Base
+            $result = $larkService->createDepartmentAlert($alertData);
+            
+            if ($result['code'] === 0) {
+                $alert->update(['sync_status' => 'synced', 'lark_record_id' => $result['data']['record']['record_id']]);
+                
+                // Send department notifications
+                $notificationService->sendDepartmentAlertNotification($alertData);
             }
         }
-        lark_records.append(record)
-    
-    return batch_create_lark_records("tbl_alert_monitor", lark_records)
+    }
+
+    private function mapPriority(string $priority): string
+    {
+        return match($priority) {
+            'critical' => 'Critical',
+            'high' => 'High', 
+            'medium' => 'Medium',
+            'low' => 'Low',
+            default => 'Medium'
+        };
+    }
+}
+```
+
+#### 3.3.3 Department Service cho Business Logic
+```php
+// app/Services/DepartmentService.php
+<?php
+
+namespace App\Services;
+
+use App\Models\Product;
+use App\Models\Department;
+use App\Models\Alert;
+use Illuminate\Support\Collection;
+use Carbon\Carbon;
+
+class DepartmentService
+{
+    /**
+     * Calculate department metrics với Primary/Secondary roles
+     */
+    public function calculateDepartmentMetricsWithRoles(string $departmentCode): array
+    {
+        // Primary Owner responsibilities
+        $primaryProducts = Product::where('primary_owner_department', $departmentCode)->get();
+        $primaryCompliance = $this->calculateComplianceScore($primaryProducts, 'primary');
+        
+        // Secondary Access responsibilities
+        $secondaryProducts = Product::whereJsonContains('secondary_access_departments', $departmentCode)->get();
+        $secondaryCompliance = $this->calculateComplianceScore($secondaryProducts, 'secondary');
+        
+        // Cross-department collaboration score
+        $collaborationScore = $this->calculateCollaborationEffectiveness($departmentCode);
+        
+        return [
+            'department' => $departmentCode,
+            'primary_owner_products' => $primaryProducts->count(),
+            'secondary_access_products' => $secondaryProducts->count(),
+            'total_responsibilities' => $primaryProducts->count() + $secondaryProducts->count(),
+            'compliant_primary_tasks' => $primaryProducts->where('compliance_percentage', '>=', 95)->count(),
+            'compliant_secondary_tasks' => $secondaryProducts->where('compliance_percentage', '>=', 90)->count(),
+            'overall_compliance_score' => $this->calculateOverallCompliance($primaryCompliance, $secondaryCompliance),
+            'primary_compliance_score' => $primaryCompliance,
+            'secondary_compliance_score' => $secondaryCompliance,
+            'critical_alerts_primary' => $this->getCriticalAlerts($primaryProducts),
+            'critical_alerts_secondary' => $this->getCriticalAlerts($secondaryProducts),
+            'avg_response_time_hours' => $this->calculateAvgResponseTime($departmentCode),
+            'cross_dept_collaboration_score' => $collaborationScore
+        ];
+    }
+
+    /**
+     * Calculate compliance score cho products với role context
+     */
+    public function calculateComplianceScore(Collection $products, string $role): float
+    {
+        if ($products->isEmpty()) {
+            return 0;
+        }
+
+        $totalCompliance = $products->sum(function ($product) use ($role) {
+            return $this->calculateProductCompliance($product, $role)['compliance_percentage'];
+        });
+
+        return round($totalCompliance / $products->count(), 2);
+    }
+
+    /**
+     * Calculate product compliance với department context
+     */
+    public function calculateProductCompliance(Product $product, string $role = 'primary'): array
+    {
+        $requiredDocs = $this->getRequiredDocumentsCount($product);
+        $completedDocs = $product->documents()->where('status', 'approved')->count();
+        $expiredDocs = $product->documents()
+            ->where('expiry_date', '<', now())
+            ->where('status', '!=', 'renewed')
+            ->count();
+
+        $compliancePercentage = $requiredDocs > 0 
+            ? (($completedDocs - $expiredDocs) / $requiredDocs) * 100 
+            : 100;
+
+        // Adjust compliance based on role
+        if ($role === 'secondary') {
+            // Secondary access has different compliance expectations
+            $compliancePercentage *= 0.8; // Reduced expectation
+        }
+
+        return [
+            'compliance_percentage' => max(0, round($compliancePercentage, 2)),
+            'required_documents' => $requiredDocs,
+            'completed_documents' => $completedDocs,
+            'expired_documents' => $expiredDocs
+        ];
+    }
+
+    /**
+     * Calculate collaboration effectiveness giữa departments
+     */
+    public function calculateCollaborationEffectiveness(string $departmentCode): float
+    {
+        $crossDeptTasks = Alert::where(function ($query) use ($departmentCode) {
+            $query->where('primary_responsible_department', $departmentCode)
+                  ->orWhereJsonContains('secondary_involved_departments', $departmentCode);
+        })
+        ->where('created_at', '>=', now()->subDays(30))
+        ->get();
+
+        if ($crossDeptTasks->isEmpty()) {
+            return 0;
+        }
+
+        $totalTasks = $crossDeptTasks->count();
+        $completedOnTime = $crossDeptTasks->filter(function ($task) {
+            return $task->status === 'resolved' && 
+                   $task->resolved_at <= $task->due_date;
+        })->count();
+
+        $avgResponseTime = $crossDeptTasks->avg('response_time_hours') ?? 0;
+
+        // Score calculation (0-100)
+        $completionScore = ($completedOnTime / $totalTasks) * 50;
+        $responseScore = max(0, 50 - (($avgResponseTime - 24) / 2)); // Penalty after 24h
+
+        return round($completionScore + $responseScore, 2);
+    }
+
+    public function getRequiredDocumentsCount(Product $product): int
+    {
+        // Implementation based on product category and regulations
+        return $product->category->required_documents ?? 5;
+    }
+
+    public function calculateNextReviewDate(Product $product): Carbon
+    {
+        // Calculate next review based on product risk level and department
+        $baseInterval = match($product->risk_level ?? 'medium') {
+            'high' => 30,    // 30 days
+            'medium' => 90,  // 90 days  
+            'low' => 180,    // 180 days
+            default => 90
+        };
+
+        return now()->addDays($baseInterval);
+    }
+
+    private function getCriticalAlerts(Collection $products): int
+    {
+        return Alert::whereIn('product_id', $products->pluck('id'))
+            ->where('priority', 'critical')
+            ->where('status', '!=', 'resolved')
+            ->count();
+    }
+
+    private function calculateAvgResponseTime(string $departmentCode): float
+    {
+        return Alert::where('primary_responsible_department', $departmentCode)
+            ->where('created_at', '>=', now()->subDays(30))
+            ->avg('response_time_hours') ?? 0;
+    }
+
+    private function calculateOverallCompliance(float $primary, float $secondary): float
+    {
+        $primaryWeight = 0.7;
+        $secondaryWeight = 0.3;
+        
+        return round(($primary * $primaryWeight) + ($secondary * $secondaryWeight), 2);
+    }
+}
 ```
 
 ### 3.3 Department Performance Sync với Primary/Secondary Tracking
@@ -284,86 +692,420 @@ def calculate_department_metrics_with_roles(dept_code):
     )
 ```
 
-### 3.4 Real-time Notification System với Department Routing
-```python
-def send_department_alert_notification(alert_data):
-    """
-    Gửi thông báo có department routing rõ ràng
-    """
-    primary_dept = alert_data['primary_responsible_department']
-    secondary_depts = alert_data.get('secondary_involved_departments', [])
-    
-    # Primary notification với full responsibility
-    primary_message = f"""
-🚨 **[{primary_dept}] CẢNH BÁO CHÍNH - CẦN XỬ LÝ**
-    
-📦 **Sản phẩm:** {alert_data['sku']} - {alert_data['product_name']}
-📋 **Tài liệu:** {alert_data['document_type']}
-⚠️ **Mức độ:** {alert_data['priority']}
-📅 **Hạn chót:** {alert_data['due_date']}
-👤 **Phụ trách:** {alert_data['assigned_person']}
+### 3.4 Laravel Notification Service với Department Routing
+```php
+// app/Services/NotificationService.php
+<?php
 
-**TRÁCH NHIỆM:** {primary_dept} là phòng ban CHÍNH cần xử lý vấn đề này.
-    """
-    
-    send_lark_group_message(
-        group_id=LARK_CONFIG['notification_groups'][primary_dept],
-        message=primary_message,
-        message_type="interactive"
-    )
-    
-    # Secondary notifications với thông tin hỗ trợ
-    for secondary_dept in secondary_depts:
-        secondary_message = f"""
-ℹ️ **[{secondary_dept}] THÔNG BÁO HỖ TRỢ - {primary_dept}→{secondary_dept}**
-        
-📦 **Sản phẩm:** {alert_data['sku']} - {alert_data['product_name']}
-📋 **Tài liệu:** {alert_data['document_type']}
-        
-**THÔNG TIN:** {primary_dept} đang xử lý, {secondary_dept} theo dõi để hỗ trợ nếu cần.
-        """
-        
-        send_lark_group_message(
-            group_id=LARK_CONFIG['notification_groups'][secondary_dept],
-            message=secondary_message,
-            message_type="text"
-        )
+namespace App\Services;
+
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+
+class NotificationService
+{
+    private $larkBotApi;
+    private $accessToken;
+
+    public function __construct(LarkBaseService $larkService)
+    {
+        $this->larkBotApi = config('lark.api_endpoints.bot_api');
+        $this->accessToken = $larkService->getAccessToken();
+    }
+
+    /**
+     * Send department alert notification với routing logic
+     */
+    public function sendDepartmentAlertNotification(array $alertData): void
+    {
+        $primaryDept = $alertData['primary_responsible_department'];
+        $secondaryDepts = $alertData['secondary_involved_departments'] ?? [];
+
+        // Primary notification với full responsibility
+        $this->sendPrimaryNotification($primaryDept, $alertData);
+
+        // Secondary notifications với support context
+        foreach ($secondaryDepts as $secondaryDept) {
+            $this->sendSecondaryNotification($secondaryDept, $alertData, $primaryDept);
+        }
+    }
+
+    /**
+     * Send primary responsibility notification
+     */
+    private function sendPrimaryNotification(string $primaryDept, array $alertData): void
+    {
+        $message = [
+            'msg_type' => 'interactive',
+            'card' => [
+                'header' => [
+                    'title' => [
+                        'tag' => 'plain_text',
+                        'content' => "🚨 [{$primaryDept}] CẢNH BÁO CHÍNH - CẦN XỬ LÝ"
+                    ],
+                    'template' => 'red'
+                ],
+                'elements' => [
+                    [
+                        'tag' => 'div',
+                        'text' => [
+                            'tag' => 'lark_md',
+                            'content' => $this->formatPrimaryMessage($alertData, $primaryDept)
+                        ]
+                    ],
+                    [
+                        'tag' => 'action',
+                        'actions' => [
+                            [
+                                'tag' => 'button',
+                                'text' => [
+                                    'tag' => 'plain_text',
+                                    'content' => 'Xử lý ngay'
+                                ],
+                                'url' => config('app.url') . "/alerts/{$alertData['id']}",
+                                'type' => 'primary'
+                            ],
+                            [
+                                'tag' => 'button',
+                                'text' => [
+                                    'tag' => 'plain_text', 
+                                    'content' => 'Xem Dashboard'
+                                ],
+                                'url' => config('lark.base_url')
+                            ]
+                        ]
+                    ]
+                ]
+            ]
+        ];
+
+        $this->sendLarkMessage(
+            config("lark.notification_groups.{$primaryDept}"),
+            $message
+        );
+    }
+
+    /**
+     * Send secondary support notification
+     */
+    private function sendSecondaryNotification(string $secondaryDept, array $alertData, string $primaryDept): void
+    {
+        $message = [
+            'msg_type' => 'text',
+            'content' => [
+                'text' => $this->formatSecondaryMessage($alertData, $secondaryDept, $primaryDept)
+            ]
+        ];
+
+        $this->sendLarkMessage(
+            config("lark.notification_groups.{$secondaryDept}"),
+            $message
+        );
+    }
+
+    /**
+     * Format primary notification message
+     */
+    private function formatPrimaryMessage(array $alertData, string $primaryDept): string
+    {
+        return "📦 **Sản phẩm:** {$alertData['sku']}\n" .
+               "📋 **Tài liệu:** {$alertData['document_type']}\n" .
+               "⚠️ **Mức độ:** {$alertData['priority']}\n" .
+               "📅 **Hạn chót:** " . ($alertData['due_date'] ?? 'Không xác định') . "\n" .
+               "👤 **Phụ trách:** {$alertData['primary_assigned_person']}\n\n" .
+               "**TRÁCH NHIỆM:** {$primaryDept} là phòng ban CHÍNH cần xử lý vấn đề này.";
+    }
+
+    /**
+     * Format secondary notification message
+     */
+    private function formatSecondaryMessage(array $alertData, string $secondaryDept, string $primaryDept): string
+    {
+        return "ℹ️ **[{$secondaryDept}] THÔNG BÁO HỖ TRỢ - {$primaryDept}→{$secondaryDept}**\n\n" .
+               "📦 **Sản phẩm:** {$alertData['sku']}\n" .
+               "📋 **Tài liệu:** {$alertData['document_type']}\n\n" .
+               "**THÔNG TIN:** {$primaryDept} đang xử lý, {$secondaryDept} theo dõi để hỗ trợ nếu cần.";
+    }
+
+    /**
+     * Send message to Lark group
+     */
+    private function sendLarkMessage(string $groupId, array $message): void
+    {
+        try {
+            $response = Http::withToken($this->accessToken)
+                ->post("{$this->larkBotApi}/messages", [
+                    'receive_id' => $groupId,
+                    'receive_id_type' => 'chat_id',
+                    'msg_type' => $message['msg_type'],
+                    'content' => json_encode($message['msg_type'] === 'interactive' ? $message['card'] : $message['content'])
+                ]);
+
+            if (!$response->successful()) {
+                Log::error('Failed to send Lark message', [
+                    'group_id' => $groupId,
+                    'response' => $response->json()
+                ]);
+            }
+
+        } catch (\Exception $e) {
+            Log::error('Exception sending Lark message', [
+                'group_id' => $groupId,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Send executive summary notification
+     */
+    public function sendExecutiveSummary(array $summary): void
+    {
+        $message = [
+            'msg_type' => 'interactive',
+            'card' => [
+                'header' => [
+                    'title' => [
+                        'tag' => 'plain_text',
+                        'content' => '📊 BÁO CÁO TÌNH HÌNH PIM - EXECUTIVE SUMMARY'
+                    ],
+                    'template' => 'blue'
+                ],
+                'elements' => [
+                    [
+                        'tag' => 'div',
+                        'text' => [
+                            'tag' => 'lark_md',
+                            'content' => $this->formatExecutiveSummary($summary)
+                        ]
+                    ],
+                    [
+                        'tag' => 'action',
+                        'actions' => [
+                            [
+                                'tag' => 'button',
+                                'text' => [
+                                    'tag' => 'plain_text',
+                                    'content' => 'Xem Dashboard Executive'
+                                ],
+                                'url' => config('lark.executive_dashboard_url'),
+                                'type' => 'primary'
+                            ]
+                        ]
+                    ]
+                ]
+            ]
+        ];
+
+        $this->sendLarkMessage(config('lark.executive_group_id'), $message);
+    }
+
+    private function formatExecutiveSummary(array $summary): string
+    {
+        return "**TÌNH HÌNH TỔNG QUAN:**\n" .
+               "• Critical Issues: {$summary['total_critical_issues']} vấn đề\n" .
+               "• Phòng ban rủi ro: " . implode(', ', $summary['departments_at_risk']) . "\n" .
+               "• Xung đột liên phòng ban: {$summary['cross_dept_conflicts']} cases\n" .
+               "• Performance suy giảm: " . implode(', ', $summary['performance_declining']) . "\n\n" .
+               "**HÀNH ĐỘNG CẦN THIẾT:**\n" . implode("\n", $summary['action_items']);
+    }
+}
 ```
 
-### 3.5 Scheduled Jobs với Department-aware Processing
+### 3.5 Laravel Queue Configuration với Department-aware Processing
 
-#### 3.5.1 Cron Job Configuration
-```python
-# settings.py - Django Celery Beat Schedule với department routing
-CELERY_BEAT_SCHEDULE = {
-    # Sync products với Primary/Secondary tracking mỗi 2 giờ
-    'sync-products-with-dept-roles': {
-        'task': 'pim.tasks.sync_products_to_lark_with_roles',
-        'schedule': crontab(minute=0, hour='*/2'),
-    },
-    
-    # Sync alerts với smart department routing mỗi 15 phút
-    'sync-dept-alerts': {
-        'task': 'pim.tasks.sync_department_alerts_to_lark', 
-        'schedule': crontab(minute='*/15'),
-    },
-    
-    # Department performance với Primary/Secondary metrics hàng ngày
-    'daily-dept-performance-with-roles': {
-        'task': 'pim.tasks.sync_dept_performance_with_roles',
-        'schedule': crontab(hour=1, minute=0),  # 1:00 AM daily
-    },
-    
-    # Cross-department collaboration tracking hàng tuần
-    'weekly-collaboration-analysis': {
-        'task': 'pim.tasks.analyze_cross_dept_collaboration',
-        'schedule': crontab(hour=2, minute=0, day_of_week=0),  # Sunday 2:00 AM
-    },
-    
-    # Department workload balancing check
-    'workload-balancing-check': {
-        'task': 'pim.tasks.check_department_workload_balance',
-        'schedule': crontab(hour=8, minute=0),  # 8:00 AM daily
+#### 3.5.1 Laravel Scheduler Configuration
+```php
+// app/Console/Kernel.php
+<?php
+
+namespace App\Console;
+
+use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
+use App\Jobs\SyncProductsToLarkJob;
+use App\Jobs\SyncDepartmentAlertsJob;
+use App\Jobs\SyncDepartmentPerformanceJob;
+use App\Jobs\AnalyzeCrossDeptCollaborationJob;
+use App\Jobs\CheckDepartmentWorkloadBalanceJob;
+
+class Kernel extends ConsoleKernel
+{
+    protected function schedule(Schedule $schedule): void
+    {
+        // Sync products với Primary/Secondary tracking mỗi 2 giờ
+        $schedule->job(new SyncProductsToLarkJob())
+                 ->everyTwoHours()
+                 ->name('sync-products-with-dept-roles')
+                 ->withoutOverlapping()
+                 ->onFailure(function () {
+                     Log::error('Products sync job failed');
+                 });
+
+        // Sync alerts với smart department routing mỗi 15 phút
+        $schedule->job(new SyncDepartmentAlertsJob())
+                 ->everyFifteenMinutes()
+                 ->name('sync-dept-alerts')
+                 ->withoutOverlapping()
+                 ->runInBackground();
+
+        // Department performance với Primary/Secondary metrics hàng ngày
+        $schedule->job(new SyncDepartmentPerformanceJob())
+                 ->dailyAt('01:00')
+                 ->name('daily-dept-performance-with-roles')
+                 ->withoutOverlapping()
+                 ->timezone('Asia/Ho_Chi_Minh');
+
+        // Cross-department collaboration tracking hàng tuần
+        $schedule->job(new AnalyzeCrossDeptCollaborationJob())
+                 ->weeklyOn(0, '02:00') // Sunday 2:00 AM
+                 ->name('weekly-collaboration-analysis')
+                 ->withoutOverlapping();
+
+        // Department workload balancing check hàng ngày
+        $schedule->job(new CheckDepartmentWorkloadBalanceJob())
+                 ->dailyAt('08:00')
+                 ->name('workload-balancing-check')
+                 ->weekdays()
+                 ->withoutOverlapping();
+
+        // Weekly executive report
+        $schedule->call(function () {
+            app(NotificationService::class)->sendWeeklySummary();
+        })->weeklyOn(1, '09:00') // Monday 9:00 AM
+          ->name('weekly-executive-report');
+    }
+
+    protected $commands = [
+        //
+    ];
+}
+```
+
+#### 3.5.2 Queue Configuration
+```php
+// config/queue.php - Department-aware queue configuration
+<?php
+
+return [
+    'default' => env('QUEUE_CONNECTION', 'database'),
+
+    'connections' => [
+        'database' => [
+            'driver' => 'database',
+            'table' => 'jobs',
+            'queue' => 'default',
+            'retry_after' => 90,
+            'after_commit' => false,
+        ],
+
+        'redis' => [
+            'driver' => 'redis',
+            'connection' => 'default',
+            'queue' => env('REDIS_QUEUE', 'default'),
+            'retry_after' => 90,
+            'block_for' => null,
+            'after_commit' => false,
+        ],
+
+        // Priority queues for different department operations
+        'department_high_priority' => [
+            'driver' => 'redis',
+            'connection' => 'default',
+            'queue' => 'dept_high',
+            'retry_after' => 60,
+        ],
+
+        'department_normal' => [
+            'driver' => 'redis', 
+            'connection' => 'default',
+            'queue' => 'dept_normal',
+            'retry_after' => 90,
+        ],
+
+        'lark_sync' => [
+            'driver' => 'redis',
+            'connection' => 'default',
+            'queue' => 'lark_sync',
+            'retry_after' => 120,
+        ],
+    ],
+
+    'failed' => [
+        'driver' => env('QUEUE_FAILED_DRIVER', 'database-uuids'),
+        'database' => env('DB_CONNECTION', 'mysql'),
+        'table' => 'failed_jobs',
+    ],
+];
+```
+
+#### 3.5.3 Department Performance Sync Job
+```php
+// app/Jobs/SyncDepartmentPerformanceJob.php
+<?php
+
+namespace App\Jobs;
+
+use App\Services\LarkBaseService;
+use App\Services\DepartmentService;
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Log;
+
+class SyncDepartmentPerformanceJob implements ShouldQueue
+{
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+
+    public $timeout = 300; // 5 minutes timeout
+    public $tries = 3;
+
+    public function handle(LarkBaseService $larkService, DepartmentService $deptService): void
+    {
+        Log::info('Starting department performance sync to Lark Base');
+
+        try {
+            $departments = config('lark.department_mapping');
+            $performanceData = [];
+
+            foreach ($departments as $deptCode => $deptName) {
+                $metrics = $deptService->calculateDepartmentMetricsWithRoles($deptCode);
+                $performanceData[$deptCode] = $metrics;
+                
+                Log::debug("Calculated metrics for {$deptCode}", $metrics);
+            }
+
+            // Batch update department performance in Lark Base
+            $result = $larkService->batchUpdateDepartmentPerformance($performanceData);
+
+            if ($result['code'] === 0) {
+                Log::info('Department performance sync completed successfully', [
+                    'departments_processed' => count($performanceData)
+                ]);
+            } else {
+                throw new \Exception('Lark API returned error: ' . $result['msg']);
+            }
+
+        } catch (\Exception $e) {
+            Log::error('Department performance sync failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            throw $e;
+        }
+    }
+
+    public function failed(\Throwable $exception): void
+    {
+        Log::error('Department performance sync job failed permanently', [
+            'error' => $exception->getMessage()
+        ]);
+
+        // Notify administrators about the failure
+        // Could trigger an alert or email notification here
     }
 }
 ```
@@ -763,386 +1505,2046 @@ def send_executive_summary(summary):
     send_lark_message(
         group_id=EXECUTIVE_GROUP_ID,
         message=message,
-## 6. API EXAMPLES VÀ IMPLEMENTATION SAMPLES
+## 4. REACT FRONTEND INTEGRATION VỚI LARK BASE
 
-### 6.1 Lark Base API Integration với Department Context
+### 4.1 React Services cho Lark Integration
 
-#### 6.1.1 Authentication với Department Permissions
-```python
-import requests
-from datetime import datetime, timedelta
+#### 4.1.1 Lark Base API Service
+```tsx
+// src/services/larkIntegrationService.ts
+import { apiClient } from './api';
 
-class LarkBaseAPI:
-    def __init__(self):
-        self.app_id = LARK_CONFIG['app_id']
-        self.app_secret = LARK_CONFIG['app_secret']
-        self.base_token = LARK_CONFIG['base_token']
-        self.access_token = None
-        self.token_expires = None
-        
-    def get_access_token(self):
-        """
-        Lấy access token để authenticate với Lark API
-        """
-        if self.access_token and self.token_expires > datetime.now():
-            return self.access_token
-            
-        url = "https://open.larksuite.com/open-apis/auth/v3/tenant_access_token/internal"
-        payload = {
-            "app_id": self.app_id,
-            "app_secret": self.app_secret
-        }
-        
-        response = requests.post(url, json=payload)
-        data = response.json()
-        
-        if data.get('code') == 0:
-            self.access_token = data['tenant_access_token']
-            self.token_expires = datetime.now() + timedelta(seconds=data['expire'] - 300)
-            return self.access_token
-        else:
-            raise Exception(f"Failed to get access token: {data}")
+export interface LarkSyncStatus {
+  sync_type: string;
+  last_sync: string;
+  status: 'success' | 'failed' | 'partial';
+  records_processed: number;
+  error_message?: string;
+}
 
-    def update_product_with_department_info(self, sku, department_data):
-        """
-        Update product record với Primary Owner + Secondary Access information
-        """
-        headers = {
-            "Authorization": f"Bearer {self.get_access_token()}",
-            "Content-Type": "application/json"
-        }
-        
-        # Find existing record
-        record_id = self.find_product_record(sku)
-        
-        # Prepare update data với department context
-        update_data = {
-            "fields": {
-                "fld_primary_dept": department_data['primary_owner_department'],
-                "fld_secondary_depts": department_data['secondary_access_departments'],
-                "fld_responsible_person": department_data['primary_responsible_person'],
-                "fld_compliance_pct": department_data['compliance_percentage'],
-                "fld_critical_alerts": department_data['critical_alerts_count'],
-                "fld_last_updated": datetime.now().isoformat()
-            }
-        }
-        
-        url = f"{LARK_BASE_API}/apps/{self.base_token}/tables/tbl_products_overview/records/{record_id}"
-        
-        response = requests.put(url, headers=headers, json=update_data)
-        return response.json()
+export interface DepartmentMetrics {
+  department: string;
+  primary_products: number;
+  secondary_products: number;
+  overall_compliance: number;
+  critical_alerts: number;
+  trend: 'improving' | 'stable' | 'declining';
+}
 
-    def create_department_alert(self, alert_data):
-        """
-        Tạo alert record với department routing information
-        """
-        headers = {
-            "Authorization": f"Bearer {self.get_access_token()}",
-            "Content-Type": "application/json"
-        }
-        
-        record_data = {
-            "fields": {
-                "fld_alert_id": alert_data['id'],
-                "fld_created_date": alert_data['created_at'].date().isoformat(),
-                "fld_priority": alert_data['priority'],
-                "fld_sku_link": [self.find_product_record(alert_data['sku'])],
-                "fld_responsible_dept": alert_data['primary_responsible_department'],
-                "fld_involved_depts": alert_data['secondary_involved_departments'],
-                "fld_alert_message": f"[{alert_data['primary_responsible_department']}] {alert_data['message']}",
-                "fld_due_date": alert_data['due_date'].isoformat() if alert_data['due_date'] else None,
-                "fld_primary_assigned": alert_data['primary_assigned_person'],
-                "fld_secondary_notified": alert_data['secondary_notified_persons'],
-                "fld_status": "New"
-            }
-        }
-        
-        url = f"{LARK_BASE_API}/apps/{self.base_token}/tables/tbl_alert_monitor/records"
-        
-        response = requests.post(url, headers=headers, json={"records": [record_data]})
-        return response.json()
+class LarkIntegrationService {
+  /**
+   * Trigger manual sync to Lark Base
+   */
+  async triggerSync(syncType: 'products' | 'alerts' | 'performance'): Promise<void> {
+    await apiClient.post(`/api/lark-sync/trigger/${syncType}`);
+  }
+
+  /**
+   * Get sync status for dashboard
+   */
+  async getSyncStatus(): Promise<LarkSyncStatus[]> {
+    const response = await apiClient.get('/api/lark-sync/status');
+    return response.data.data;
+  }
+
+  /**
+   * Get department performance metrics
+   */
+  async getDepartmentMetrics(): Promise<DepartmentMetrics[]> {
+    const response = await apiClient.get('/api/lark-sync/department-metrics');
+    return response.data.data;
+  }
+
+  /**
+   * Send test notification to department
+   */
+  async sendTestNotification(department: string, message: string): Promise<void> {
+    await apiClient.post('/api/lark-sync/test-notification', {
+      department,
+      message
+    });
+  }
+
+  /**
+   * Get Lark Base dashboard URL
+   */
+  getLarkBaseUrl(): string {
+    return process.env.REACT_APP_LARK_BASE_URL || '#';
+  }
+
+  /**
+   * Get executive dashboard URL
+   */
+  getExecutiveDashboardUrl(): string {
+    return process.env.REACT_APP_LARK_EXECUTIVE_URL || '#';
+  }
+}
+
+export const larkIntegrationService = new LarkIntegrationService();
 ```
 
-### 6.2 Department Performance Calculation
-```python
-def calculate_department_performance_with_roles(department_code):
-    """
-    Tính toán performance chi tiết cho phòng ban với Primary/Secondary roles
-    """
-    # Lấy tất cả products mà department này involved
-    primary_products = Product.objects.filter(primary_owner_department=department_code)
-    secondary_products = Product.objects.filter(secondary_access_departments__contains=department_code)
-    
-    # Calculate Primary Owner performance
-    primary_metrics = {
-        'total_products': primary_products.count(),
-        'compliant_products': primary_products.filter(compliance_percentage__gte=95).count(),
-        'critical_alerts': sum(p.critical_alerts_count for p in primary_products),
-        'avg_compliance': primary_products.aggregate(avg_compliance=Avg('compliance_percentage'))['avg_compliance'] or 0
-    }
-    
-    # Calculate Secondary Access performance  
-    secondary_metrics = {
-        'total_products': secondary_products.count(),
-        'support_provided': calculate_support_quality(secondary_products, department_code),
-        'response_time': calculate_avg_response_time(department_code),
-        'collaboration_score': calculate_collaboration_effectiveness(department_code)
-    }
-    
-    # Overall department score với weighted calculation
-    primary_weight = 0.7  # Primary responsibilities carry more weight
-    secondary_weight = 0.3
-    
-    overall_score = (
-        primary_metrics['avg_compliance'] * primary_weight +
-        secondary_metrics['collaboration_score'] * secondary_weight
-    )
-    
-    return {
-        'department': department_code,
-        'primary_metrics': primary_metrics,
-        'secondary_metrics': secondary_metrics,
-        'overall_score': round(overall_score, 2),
-        'performance_trend': calculate_trend_direction(department_code),
-        'improvement_actions': generate_improvement_recommendations(primary_metrics, secondary_metrics)
-    }
+#### 4.1.2 React Hook cho Lark Integration
+```tsx
+// src/hooks/useLarkIntegration.ts
+import { useState, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { larkIntegrationService, DepartmentMetrics, LarkSyncStatus } from '../services/larkIntegrationService';
+import { message } from 'antd';
 
-def calculate_collaboration_effectiveness(department_code):
-    """
-    Tính toán hiệu quả hợp tác của phòng ban với phòng ban khác
-    """
-    # Get cross-department interactions
-    cross_dept_tasks = CrossDepartmentTask.objects.filter(
-        Q(primary_department=department_code) | Q(secondary_departments__contains=department_code),
-        created_at__gte=timezone.now() - timedelta(days=30)
-    )
-    
-    if not cross_dept_tasks.exists():
-        return 0
-    
-    # Calculate metrics
-    total_tasks = cross_dept_tasks.count()
-    completed_on_time = cross_dept_tasks.filter(
-        status='completed',
-        completed_at__lte=F('due_date')
-    ).count()
-    
-    avg_response_time = cross_dept_tasks.aggregate(
-        avg_response=Avg('response_time_hours')
-    )['avg_response'] or 0
-    
-    # Score calculation (0-100)
-    completion_score = (completed_on_time / total_tasks) * 50
-    response_score = min(50, max(0, 50 - (avg_response_time - 24) / 2))  # Penalty after 24h
-    
-    return round(completion_score + response_score, 2)
+export const useLarkSyncStatus = () => {
+  return useQuery({
+    queryKey: ['lark-sync-status'],
+    queryFn: larkIntegrationService.getSyncStatus,
+    refetchInterval: 30000, // Refresh every 30 seconds
+  });
+};
+
+export const useDepartmentMetrics = () => {
+  return useQuery({
+    queryKey: ['department-metrics'],
+    queryFn: larkIntegrationService.getDepartmentMetrics,
+    refetchInterval: 60000, // Refresh every minute
+  });
+};
+
+export const useTriggerSync = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (syncType: 'products' | 'alerts' | 'performance') =>
+      larkIntegrationService.triggerSync(syncType),
+    onSuccess: (_, syncType) => {
+      message.success(`${syncType} sync triggered successfully`);
+      // Invalidate and refetch sync status
+      queryClient.invalidateQueries({ queryKey: ['lark-sync-status'] });
+    },
+    onError: (error) => {
+      message.error('Failed to trigger sync: ' + error.message);
+    },
+  });
+};
+
+export const useTestNotification = () => {
+  return useMutation({
+    mutationFn: ({ department, message: testMessage }: { department: string; message: string }) =>
+      larkIntegrationService.sendTestNotification(department, testMessage),
+    onSuccess: () => {
+      message.success('Test notification sent successfully');
+    },
+    onError: (error) => {
+      message.error('Failed to send test notification: ' + error.message);
+    },
+  });
+};
 ```
 
-### 6.3 Real-time Dashboard Updates
-```python
-def setup_real_time_dashboard_sync():
-    """
-    Thiết lập đồng bộ real-time cho dashboard với WebSocket
-    """
-    import asyncio
-    import websockets
-    from channels.generic.websocket import AsyncWebsocketConsumer
-    
-    class DepartmentDashboardConsumer(AsyncWebsocketConsumer):
-        async def connect(self):
-            self.department = self.scope['url_route']['kwargs']['department']
-            self.group_name = f'dashboard_{self.department}'
-            
-            # Join department-specific group
-            await self.channel_layer.group_add(
-                self.group_name,
-                self.channel_name
-            )
-            
-            await self.accept()
-            
-            # Send initial dashboard data
-            initial_data = await self.get_department_dashboard_data()
-            await self.send(text_data=json.dumps(initial_data))
-        
-        async def receive(self, text_data):
-            data = json.loads(text_data)
-            
-            if data['type'] == 'request_update':
-                # Send updated dashboard data
-                dashboard_data = await self.get_department_dashboard_data()
-                await self.send(text_data=json.dumps({
-                    'type': 'dashboard_update',
-                    'data': dashboard_data
-                }))
-        
-        async def dashboard_update(self, event):
-            # Send update to WebSocket
-            await self.send(text_data=json.dumps({
-                'type': 'dashboard_update',
-                'data': event['data']
-            }))
-        
-        async def get_department_dashboard_data(self):
-            """
-            Lấy data dashboard real-time cho department
-            """
-            department = self.department
-            
-            # Get current metrics
-            performance = await sync_to_async(calculate_department_performance_with_roles)(department)
-            recent_alerts = await sync_to_async(get_recent_department_alerts)(department, hours=4)
-            workload_status = await sync_to_async(get_current_workload_status)(department)
-            
-            return {
-                'department': department,
-                'timestamp': timezone.now().isoformat(),
-                'performance': performance,
-                'recent_alerts': [serialize_alert(alert) for alert in recent_alerts],
-                'workload': workload_status,
-                'cross_department_tasks': await sync_to_async(get_cross_dept_tasks)(department)
+#### 4.1.3 Lark Integration Dashboard Component
+```tsx
+// src/components/lark/LarkIntegrationDashboard.tsx
+import React, { useState } from 'react';
+import {
+  Card,
+  Row,
+  Col,
+  Statistic,
+  Button,
+  Badge,
+  Table,
+  Select,
+  Input,
+  Space,
+  Typography,
+  Alert,
+  Spin,
+} from 'antd';
+import {
+  SyncOutlined,
+  CheckCircleOutlined,
+  ExclamationCircleOutlined,
+  TrendingUpOutlined,
+  TrendingDownOutlined,
+  MinusOutlined,
+  ExternalLinkOutlined,
+} from '@ant-design/icons';
+import { useLarkSyncStatus, useDepartmentMetrics, useTriggerSync, useTestNotification } from '../../hooks/useLarkIntegration';
+import { larkIntegrationService } from '../../services/larkIntegrationService';
+
+const { Title } = Typography;
+const { Option } = Select;
+
+const LarkIntegrationDashboard: React.FC = () => {
+  const { data: syncStatus, isLoading: syncLoading } = useLarkSyncStatus();
+  const { data: departmentMetrics, isLoading: metricsLoading } = useDepartmentMetrics();
+  const triggerSync = useTriggerSync();
+  const testNotification = useTestNotification();
+
+  const [selectedDepartment, setSelectedDepartment] = useState<string>('');
+  const [testMessage, setTestMessage] = useState<string>('');
+
+  const departments = ['RND', 'MKT', 'ECOM', 'PUR', 'LEG', 'WH', 'COM'];
+
+  const handleTriggerSync = (syncType: 'products' | 'alerts' | 'performance') => {
+    triggerSync.mutate(syncType);
+  };
+
+  const handleTestNotification = () => {
+    if (selectedDepartment && testMessage) {
+      testNotification.mutate({
+        department: selectedDepartment,
+        message: testMessage,
+      });
+      setTestMessage('');
+    }
+  };
+
+  const getSyncStatusBadge = (status: string) => {
+    switch (status) {
+      case 'success':
+        return <Badge status="success" text="Success" />;
+      case 'failed':
+        return <Badge status="error" text="Failed" />;
+      case 'partial':
+        return <Badge status="warning" text="Partial" />;
+      default:
+        return <Badge status="default" text="Unknown" />;
+    }
+  };
+
+  const getTrendIcon = (trend: string) => {
+    switch (trend) {
+      case 'improving':
+        return <TrendingUpOutlined style={{ color: '#52c41a' }} />;
+      case 'declining':
+        return <TrendingDownOutlined style={{ color: '#f5222d' }} />;
+      default:
+        return <MinusOutlined style={{ color: '#d9d9d9' }} />;
+    }
+  };
+
+  const syncColumns = [
+    {
+      title: 'Sync Type',
+      dataIndex: 'sync_type',
+      key: 'sync_type',
+      render: (text: string) => text.replace('_', ' ').toUpperCase(),
+    },
+    {
+      title: 'Last Sync',
+      dataIndex: 'last_sync',
+      key: 'last_sync',
+      render: (text: string) => new Date(text).toLocaleString(),
+    },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      key: 'status',
+      render: (status: string) => getSyncStatusBadge(status),
+    },
+    {
+      title: 'Records Processed',
+      dataIndex: 'records_processed',
+      key: 'records_processed',
+    },
+    {
+      title: 'Actions',
+      key: 'actions',
+      render: (_, record: any) => (
+        <Button
+          size="small"
+          icon={<SyncOutlined />}
+          loading={triggerSync.isPending}
+          onClick={() => handleTriggerSync(record.sync_type)}
+        >
+          Sync Now
+        </Button>
+      ),
+    },
+  ];
+
+  const metricsColumns = [
+    {
+      title: 'Department',
+      dataIndex: 'department',
+      key: 'department',
+    },
+    {
+      title: 'Primary Products',
+      dataIndex: 'primary_products',
+      key: 'primary_products',
+    },
+    {
+      title: 'Secondary Products',
+      dataIndex: 'secondary_products',
+      key: 'secondary_products',
+    },
+    {
+      title: 'Compliance %',
+      dataIndex: 'overall_compliance',
+      key: 'overall_compliance',
+      render: (value: number) => `${value}%`,
+    },
+    {
+      title: 'Critical Alerts',
+      dataIndex: 'critical_alerts',
+      key: 'critical_alerts',
+      render: (value: number) => (
+        <Badge count={value} showZero color={value > 0 ? '#f5222d' : '#52c41a'} />
+      ),
+    },
+    {
+      title: 'Trend',
+      dataIndex: 'trend',
+      key: 'trend',
+      render: (trend: string) => (
+        <Space>
+          {getTrendIcon(trend)}
+          <span style={{ textTransform: 'capitalize' }}>{trend}</span>
+        </Space>
+      ),
+    },
+  ];
+
+  return (
+    <div style={{ padding: '24px' }}>
+      <Title level={2}>Lark Base Integration Dashboard</Title>
+      
+      <Alert
+        message="Lark Base Integration Status"
+        description="Real-time monitoring and control of PIM data synchronization with Lark Base"
+        type="info"
+        showIcon
+        style={{ marginBottom: 24 }}
+        action={
+          <Button
+            icon={<ExternalLinkOutlined />}
+            href={larkIntegrationService.getLarkBaseUrl()}
+            target="_blank"
+          >
+            Open Lark Base
+          </Button>
+        }
+      />
+
+      {/* Sync Status Overview */}
+      <Row gutter={16} style={{ marginBottom: 24 }}>
+        <Col span={8}>
+          <Card>
+            <Statistic
+              title="Products Synced"
+              value={syncStatus?.find(s => s.sync_type === 'products')?.records_processed || 0}
+              prefix={<CheckCircleOutlined />}
+              valueStyle={{ color: '#3f8600' }}
+            />
+          </Card>
+        </Col>
+        <Col span={8}>
+          <Card>
+            <Statistic
+              title="Alerts Synced"
+              value={syncStatus?.find(s => s.sync_type === 'alerts')?.records_processed || 0}
+              prefix={<ExclamationCircleOutlined />}
+              valueStyle={{ color: '#cf1322' }}
+            />
+          </Card>
+        </Col>
+        <Col span={8}>
+          <Card>
+            <Statistic
+              title="Last Sync"
+              value={syncStatus?.[0]?.last_sync ? new Date(syncStatus[0].last_sync).toLocaleTimeString() : 'Never'}
+              prefix={<SyncOutlined />}
+            />
+          </Card>
+        </Col>
+      </Row>
+
+      {/* Sync Status Table */}
+      <Card title="Sync Status Details" style={{ marginBottom: 24 }}>
+        <Spin spinning={syncLoading}>
+          <Table
+            columns={syncColumns}
+            dataSource={syncStatus || []}
+            rowKey="sync_type"
+            pagination={false}
+            size="small"
+          />
+        </Spin>
+      </Card>
+
+      {/* Department Metrics */}
+      <Card title="Department Performance Metrics" style={{ marginBottom: 24 }}>
+        <Spin spinning={metricsLoading}>
+          <Table
+            columns={metricsColumns}
+            dataSource={departmentMetrics || []}
+            rowKey="department"
+            pagination={false}
+          />
+        </Spin>
+      </Card>
+
+      {/* Test Notifications */}
+      <Card title="Test Notifications">
+        <Space direction="vertical" style={{ width: '100%' }}>
+          <Row gutter={16}>
+            <Col span={8}>
+              <Select
+                placeholder="Select Department"
+                value={selectedDepartment}
+                onChange={setSelectedDepartment}
+                style={{ width: '100%' }}
+              >
+                {departments.map(dept => (
+                  <Option key={dept} value={dept}>{dept}</Option>
+                ))}
+              </Select>
+            </Col>
+            <Col span={12}>
+              <Input
+                placeholder="Test message"
+                value={testMessage}
+                onChange={(e) => setTestMessage(e.target.value)}
+              />
+            </Col>
+            <Col span={4}>
+              <Button
+                type="primary"
+                onClick={handleTestNotification}
+                loading={testNotification.isPending}
+                disabled={!selectedDepartment || !testMessage}
+              >
+                Send Test
+              </Button>
+            </Col>
+          </Row>
+        </Space>
+      </Card>
+    </div>
+  );
+};
+
+export default LarkIntegrationDashboard;
+```
+
+### 4.2 Laravel API Controllers cho React Frontend
+
+#### 4.2.1 Lark Sync Controller
+```php
+// app/Http/Controllers/Api/LarkSyncController.php
+<?php
+
+namespace App\Http\Controllers\Api;
+
+use App\Http\Controllers\Controller;
+use App\Jobs\SyncProductsToLarkJob;
+use App\Jobs\SyncDepartmentAlertsJob;
+use App\Jobs\SyncDepartmentPerformanceJob;
+use App\Models\LarkSyncStatus;
+use App\Services\DepartmentService;
+use App\Services\NotificationService;
+use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Validator;
+
+class LarkSyncController extends Controller
+{
+    public function __construct(
+        private DepartmentService $departmentService,
+        private NotificationService $notificationService
+    ) {}
+
+    /**
+     * Get current sync status for dashboard
+     */
+    public function getSyncStatus(): JsonResponse
+    {
+        $syncStatus = LarkSyncStatus::select([
+            'sync_type',
+            'last_sync',
+            'status',
+            'records_processed',
+            'error_message',
+            'duration_seconds'
+        ])
+        ->orderBy('last_sync', 'desc')
+        ->get()
+        ->groupBy('sync_type')
+        ->map(function ($group) {
+            return $group->first(); // Get latest sync for each type
+        })
+        ->values();
+
+        return response()->json([
+            'success' => true,
+            'data' => $syncStatus
+        ]);
+    }
+
+    /**
+     * Trigger manual sync
+     */
+    public function triggerSync(Request $request, string $syncType): JsonResponse
+    {
+        $validator = Validator::make(['sync_type' => $syncType], [
+            'sync_type' => 'required|in:products,alerts,performance'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid sync type',
+                'errors' => $validator->errors()
+            ], 400);
+        }
+
+        try {
+            match($syncType) {
+                'products' => SyncProductsToLarkJob::dispatch(),
+                'alerts' => SyncDepartmentAlertsJob::dispatch(),
+                'performance' => SyncDepartmentPerformanceJob::dispatch(),
+            };
+
+            return response()->json([
+                'success' => true,
+                'message' => ucfirst($syncType) . ' sync job has been queued'
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to trigger sync: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get department performance metrics for dashboard
+     */
+    public function getDepartmentMetrics(): JsonResponse
+    {
+        try {
+            $departments = config('lark.department_mapping');
+            $metrics = [];
+
+            foreach ($departments as $deptCode => $deptName) {
+                $deptMetrics = $this->departmentService->calculateDepartmentMetricsWithRoles($deptCode);
+                
+                $metrics[] = [
+                    'department' => $deptCode,
+                    'department_name' => $deptName,
+                    'primary_products' => $deptMetrics['primary_owner_products'],
+                    'secondary_products' => $deptMetrics['secondary_access_products'],
+                    'overall_compliance' => $deptMetrics['overall_compliance_score'],
+                    'critical_alerts' => $deptMetrics['critical_alerts_primary'] + $deptMetrics['critical_alerts_secondary'],
+                    'trend' => $this->determineTrend($deptMetrics),
+                    'last_updated' => now()->toISOString()
+                ];
             }
+
+            return response()->json([
+                'success' => true,
+                'data' => $metrics
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to get department metrics: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Send test notification to department group
+     */
+    public function sendTestNotification(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'department' => 'required|string|in:RND,MKT,ECOM,PUR,LEG,WH,COM',
+            'message' => 'required|string|max:500'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 400);
+        }
+
+        try {
+            $testAlertData = [
+                'id' => 'TEST-' . now()->timestamp,
+                'sku' => 'TEST-PRODUCT-001',
+                'primary_responsible_department' => $request->department,
+                'secondary_involved_departments' => [],
+                'document_type' => 'Test Document',
+                'message' => '[TEST] ' . $request->message,
+                'priority' => 'Low',
+                'due_date' => null,
+                'primary_assigned_person' => 'Test User'
+            ];
+
+            $this->notificationService->sendDepartmentAlertNotification($testAlertData);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Test notification sent successfully'
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to send test notification: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get Lark Base integration health status
+     */
+    public function getHealthStatus(): JsonResponse
+    {
+        try {
+            $recentSyncs = LarkSyncStatus::where('last_sync', '>=', now()->subHours(24))->get();
+            
+            $failedSyncs = $recentSyncs->where('status', 'failed')->count();
+            $totalSyncs = $recentSyncs->count();
+            
+            $healthStatus = match(true) {
+                $totalSyncs === 0 => 'no_data',
+                $failedSyncs === 0 => 'healthy',
+                ($failedSyncs / $totalSyncs) < 0.1 => 'warning',
+                default => 'critical'
+            };
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'status' => $healthStatus,
+                    'total_syncs_24h' => $totalSyncs,
+                    'failed_syncs_24h' => $failedSyncs,
+                    'success_rate' => $totalSyncs > 0 ? round(($totalSyncs - $failedSyncs) / $totalSyncs * 100, 2) : 0,
+                    'last_successful_sync' => $recentSyncs->where('status', 'success')->max('last_sync')
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to get health status: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    private function determineTrend(array $metrics): string
+    {
+        // Simple trend calculation - in real implementation, compare with historical data
+        $overallScore = $metrics['overall_compliance_score'];
+        $criticalAlerts = $metrics['critical_alerts_primary'] + $metrics['critical_alerts_secondary'];
+        
+        if ($overallScore >= 90 && $criticalAlerts <= 2) {
+            return 'improving';
+        } elseif ($overallScore < 70 || $criticalAlerts > 10) {
+            return 'declining';
+        }
+        
+        return 'stable';
+    }
+}
 ```
 
-### 6.4 Deployment Configuration
-```python
-# docker-compose.yml cho PIM + Lark Base integration
+#### 4.2.2 Laravel Model cho Sync Status Tracking
+```php
+// app/Models/LarkSyncStatus.php
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Carbon\Carbon;
+
+class LarkSyncStatus extends Model
+{
+    use HasFactory;
+
+    protected $table = 'lark_sync_status';
+
+    protected $fillable = [
+        'sync_type',
+        'last_sync',
+        'status',
+        'records_processed',
+        'error_message',
+        'duration_seconds'
+    ];
+
+    protected $casts = [
+        'last_sync' => 'datetime',
+        'records_processed' => 'integer',
+        'duration_seconds' => 'float'
+    ];
+
+    /**
+     * Create or update sync status record
+     */
+    public static function updateSyncStatus(
+        string $syncType,
+        string $status,
+        int $recordsProcessed = 0,
+        ?string $errorMessage = null,
+        float $durationSeconds = 0
+    ): self {
+        return self::updateOrCreate(
+            ['sync_type' => $syncType],
+            [
+                'last_sync' => now(),
+                'status' => $status,
+                'records_processed' => $recordsProcessed,
+                'error_message' => $errorMessage,
+                'duration_seconds' => $durationSeconds
+            ]
+        );
+    }
+
+    /**
+     * Get failed syncs in last 24 hours
+     */
+    public static function getRecentFailures(): \Illuminate\Database\Eloquent\Collection
+    {
+        return self::where('status', 'failed')
+            ->where('last_sync', '>=', Carbon::now()->subHours(24))
+            ->orderBy('last_sync', 'desc')
+            ->get();
+    }
+}
+```
+
+### 4.3 Real-time Dashboard Updates với Laravel Broadcasting
+
+#### 4.3.1 Laravel Broadcasting Setup
+```php
+// config/broadcasting.php
+<?php
+
+return [
+    'default' => env('BROADCAST_DRIVER', 'pusher'),
+
+    'connections' => [
+        'pusher' => [
+            'driver' => 'pusher',
+            'key' => env('PUSHER_APP_KEY'),
+            'secret' => env('PUSHER_APP_SECRET'),
+            'app_id' => env('PUSHER_APP_ID'),
+            'options' => [
+                'cluster' => env('PUSHER_APP_CLUSTER'),
+                'useTLS' => true,
+                'host' => env('PUSHER_HOST') ?: 'api-' . env('PUSHER_APP_CLUSTER', 'mt1') . '.pusherapp.com',
+                'port' => env('PUSHER_PORT', 443),
+                'scheme' => env('PUSHER_SCHEME', 'https'),
+                'encrypted' => true,
+            ],
+        ],
+
+        'redis' => [
+            'driver' => 'redis',
+            'connection' => 'default',
+        ],
+    ],
+];
+```
+
+#### 4.3.2 Department Dashboard Event
+```php
+// app/Events/DepartmentDashboardUpdate.php
+<?php
+
+namespace App\Events;
+
+use Illuminate\Broadcasting\Channel;
+use Illuminate\Broadcasting\InteractsWithSockets;
+use Illuminate\Broadcasting\PresenceChannel;
+use Illuminate\Broadcasting\PrivateChannel;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
+use Illuminate\Foundation\Events\Dispatchable;
+use Illuminate\Queue\SerializesModels;
+
+class DepartmentDashboardUpdate implements ShouldBroadcast
+{
+    use Dispatchable, InteractsWithSockets, SerializesModels;
+
+    public function __construct(
+        public string $department,
+        public array $dashboardData,
+        public string $updateType = 'general'
+    ) {}
+
+    /**
+     * Get the channels the event should broadcast on
+     */
+    public function broadcastOn(): array
+    {
+        return [
+            new PrivateChannel("department-dashboard.{$this->department}"),
+            new Channel('lark-integration-updates'), // For admin monitoring
+        ];
+    }
+
+    /**
+     * The event's broadcast name
+     */
+    public function broadcastAs(): string
+    {
+        return 'dashboard.updated';
+    }
+
+    /**
+     * Get the data to broadcast
+     */
+    public function broadcastWith(): array
+    {
+        return [
+            'department' => $this->department,
+            'type' => $this->updateType,
+            'data' => $this->dashboardData,
+            'timestamp' => now()->toISOString(),
+        ];
+    }
+}
+```
+
+#### 4.3.3 Real-time Dashboard Service
+```php
+// app/Services/RealTimeDashboardService.php
+<?php
+
+namespace App\Services;
+
+use App\Events\DepartmentDashboardUpdate;
+use App\Models\Product;
+use App\Models\Alert;
+use Illuminate\Support\Facades\Cache;
+
+class RealTimeDashboardService
+{
+    public function __construct(
+        private DepartmentService $departmentService
+    ) {}
+
+    /**
+     * Get real-time dashboard data cho department
+     */
+    public function getDepartmentDashboardData(string $department): array
+    {
+        $cacheKey = "dashboard_data_{$department}";
+        
+        return Cache::remember($cacheKey, 300, function () use ($department) {
+            // Get current metrics
+            $performance = $this->departmentService->calculateDepartmentMetricsWithRoles($department);
+            $recentAlerts = $this->getRecentDepartmentAlerts($department, 4);
+            $workloadStatus = $this->getCurrentWorkloadStatus($department);
+            $crossDeptTasks = $this->getCrossDepartmentTasks($department);
+
+            return [
+                'department' => $department,
+                'timestamp' => now()->toISOString(),
+                'performance' => $performance,
+                'recent_alerts' => $recentAlerts->map(function ($alert) {
+                    return [
+                        'id' => $alert->id,
+                        'message' => $alert->message,
+                        'priority' => $alert->priority,
+                        'created_at' => $alert->created_at->toISOString(),
+                        'status' => $alert->status,
+                        'product_sku' => $alert->product->code ?? null
+                    ];
+                }),
+                'workload' => $workloadStatus,
+                'cross_department_tasks' => $crossDeptTasks,
+                'sync_status' => $this->getLarkSyncHealthForDepartment($department)
+            ];
+        });
+    }
+
+    /**
+     * Broadcast dashboard update cho department
+     */
+    public function broadcastDashboardUpdate(string $department, string $updateType = 'general'): void
+    {
+        $dashboardData = $this->getDepartmentDashboardData($department);
+        
+        // Clear cache để force refresh
+        Cache::forget("dashboard_data_{$department}");
+        
+        event(new DepartmentDashboardUpdate($department, $dashboardData, $updateType));
+    }
+
+    /**
+     * Broadcast update cho tất cả departments khi có system-wide changes
+     */
+    public function broadcastSystemWideUpdate(): void
+    {
+        $departments = array_keys(config('lark.department_mapping'));
+        
+        foreach ($departments as $department) {
+            $this->broadcastDashboardUpdate($department, 'system_update');
+        }
+    }
+
+    private function getRecentDepartmentAlerts(string $department, int $hours)
+    {
+        return Alert::with('product')
+            ->where(function ($query) use ($department) {
+                $query->where('primary_responsible_department', $department)
+                      ->orWhereJsonContains('secondary_involved_departments', $department);
+            })
+            ->where('created_at', '>=', now()->subHours($hours))
+            ->orderBy('created_at', 'desc')
+            ->limit(10)
+            ->get();
+    }
+
+    private function getCurrentWorkloadStatus(string $department): array
+    {
+        $primaryTasks = Alert::where('primary_responsible_department', $department)
+            ->where('status', '!=', 'resolved')
+            ->count();
+            
+        $secondaryTasks = Alert::whereJsonContains('secondary_involved_departments', $department)
+            ->where('status', '!=', 'resolved')
+            ->count();
+
+        $urgentTasks = Alert::where(function ($query) use ($department) {
+                $query->where('primary_responsible_department', $department)
+                      ->orWhereJsonContains('secondary_involved_departments', $department);
+            })
+            ->where('priority', 'critical')
+            ->where('status', '!=', 'resolved')
+            ->count();
+
+        $capacityPercentage = min(100, ($primaryTasks + $secondaryTasks) * 10); // Simple calculation
+
+        return [
+            'primary_tasks_total' => $primaryTasks,
+            'secondary_tasks_total' => $secondaryTasks,
+            'urgent_tasks' => $urgentTasks,
+            'capacity_percentage' => $capacityPercentage,
+            'status' => $this->getWorkloadStatus($capacityPercentage),
+        ];
+    }
+
+    private function getCrossDepartmentTasks(string $department): array
+    {
+        $tasks = Alert::where(function ($query) use ($department) {
+                $query->where('primary_responsible_department', '!=', $department)
+                      ->whereJsonContains('secondary_involved_departments', $department);
+            })
+            ->orWhere(function ($query) use ($department) {
+                $query->where('primary_responsible_department', $department)
+                      ->whereNotNull('secondary_involved_departments');
+            })
+            ->where('status', '!=', 'resolved')
+            ->with('product')
+            ->limit(5)
+            ->get();
+
+        return $tasks->map(function ($task) use ($department) {
+            $isPrimary = $task->primary_responsible_department === $department;
+            
+            return [
+                'id' => $task->id,
+                'role' => $isPrimary ? 'primary' : 'secondary',
+                'other_departments' => $isPrimary 
+                    ? $task->secondary_involved_departments 
+                    : [$task->primary_responsible_department],
+                'product_sku' => $task->product->code ?? null,
+                'priority' => $task->priority,
+                'status' => $task->status,
+                'due_date' => $task->due_date?->toDateString()
+            ];
+        })->toArray();
+    }
+
+    private function getLarkSyncHealthForDepartment(string $department): array
+    {
+        // Get recent sync status relevant to this department
+        return [
+            'last_sync' => Cache::get('last_successful_sync'),
+            'status' => Cache::get('sync_health_status', 'unknown'),
+            'next_sync' => now()->addMinutes(15)->toISOString() // Based on cron schedule
+        ];
+    }
+
+    private function getWorkloadStatus(int $capacityPercentage): string
+    {
+        return match(true) {
+            $capacityPercentage < 30 => 'light',
+            $capacityPercentage < 60 => 'normal', 
+            $capacityPercentage < 85 => 'heavy',
+            default => 'overloaded'
+        };
+    }
+}
+```
+
+### 4.4 React Real-time Dashboard Component
+```tsx
+// src/components/dashboard/RealTimeDepartmentDashboard.tsx
+import React, { useState, useEffect } from 'react';
+import {
+  Card,
+  Row,
+  Col,
+  Statistic,
+  Progress,
+  Badge,
+  Timeline,
+  Alert,
+  Spin,
+  Button,
+  Typography
+} from 'antd';
+import {
+  UserOutlined,
+  AlertOutlined,
+  CheckCircleOutlined,
+  ClockCircleOutlined,
+  ReloadOutlined
+} from '@ant-design/icons';
+import Echo from 'laravel-echo';
+import Pusher from 'pusher-js';
+
+const { Title, Text } = Typography;
+
+declare global {
+  interface Window {
+    Pusher: any;
+    Echo: any;
+  }
+}
+
+interface DashboardData {
+  department: string;
+  timestamp: string;
+  performance: {
+    overall_compliance_score: number;
+    critical_alerts_primary: number;
+    critical_alerts_secondary: number;
+    primary_owner_products: number;
+    secondary_access_products: number;
+  };
+  recent_alerts: Array<{
+    id: string;
+    message: string;
+    priority: string;
+    created_at: string;
+    status: string;
+    product_sku?: string;
+  }>;
+  workload: {
+    primary_tasks_total: number;
+    secondary_tasks_total: number;
+    urgent_tasks: number;
+    capacity_percentage: number;
+    status: string;
+  };
+  cross_department_tasks: Array<{
+    id: string;
+    role: 'primary' | 'secondary';
+    other_departments: string[];
+    product_sku?: string;
+    priority: string;
+    status: string;
+  }>;
+  sync_status: {
+    last_sync: string;
+    status: string;
+    next_sync: string;
+  };
+}
+
+interface RealTimeDepartmentDashboardProps {
+  department: string;
+  userId: string;
+}
+
+const RealTimeDepartmentDashboard: React.FC<RealTimeDepartmentDashboardProps> = ({
+  department,
+  userId
+}) => {
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [connected, setConnected] = useState(false);
+  const [lastUpdate, setLastUpdate] = useState<string>('');
+
+  useEffect(() => {
+    // Setup Laravel Echo for real-time updates
+    window.Pusher = Pusher;
+
+    window.Echo = new Echo({
+      broadcaster: 'pusher',
+      key: process.env.REACT_APP_PUSHER_APP_KEY,
+      cluster: process.env.REACT_APP_PUSHER_APP_CLUSTER,
+      forceTLS: true,
+      auth: {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+        },
+      },
+    });
+
+    // Subscribe to department-specific channel
+    const channel = window.Echo.private(`department-dashboard.${department}`);
+    
+    channel.listen('.dashboard.updated', (event: any) => {
+      console.log('Dashboard update received:', event);
+      setDashboardData(event.data);
+      setLastUpdate(event.timestamp);
+      setLoading(false);
+    });
+
+    // Subscribe to general Lark integration updates
+    const generalChannel = window.Echo.channel('lark-integration-updates');
+    
+    generalChannel.listen('.sync.completed', (event: any) => {
+      console.log('Sync completed:', event);
+      // Trigger a refresh of dashboard data
+      fetchDashboardData();
+    });
+
+    setConnected(true);
+
+    // Initial data fetch
+    fetchDashboardData();
+
+    return () => {
+      window.Echo.leave(`department-dashboard.${department}`);
+      window.Echo.leave('lark-integration-updates');
+    };
+  }, [department]);
+
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/dashboard/department/${department}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+        },
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        setDashboardData(result.data);
+        setLastUpdate(new Date().toISOString());
+      }
+    } catch (error) {
+      console.error('Failed to fetch dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getWorkloadColor = (status: string) => {
+    switch (status) {
+      case 'light': return '#52c41a';
+      case 'normal': return '#1677ff';
+      case 'heavy': return '#faad14';
+      case 'overloaded': return '#f5222d';
+      default: return '#d9d9d9';
+    }
+  };
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority.toLowerCase()) {
+      case 'critical': return 'error';
+      case 'high': return 'warning';
+      case 'medium': return 'processing';
+      case 'low': return 'success';
+      default: return 'default';
+    }
+  };
+
+  if (loading && !dashboardData) {
+    return (
+      <div style={{ textAlign: 'center', padding: '50px' }}>
+        <Spin size="large" />
+        <div style={{ marginTop: 16 }}>Loading department dashboard...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ padding: '24px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+        <Title level={2}>
+          {department} Department Dashboard
+          <Badge 
+            status={connected ? 'processing' : 'error'} 
+            text={connected ? 'Live' : 'Disconnected'}
+            style={{ marginLeft: 16 }}
+          />
+        </Title>
+        
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <Text type="secondary">
+            Last updated: {lastUpdate ? new Date(lastUpdate).toLocaleTimeString() : 'Never'}
+          </Text>
+          <Button 
+            icon={<ReloadOutlined />} 
+            onClick={fetchDashboardData}
+            loading={loading}
+          >
+            Refresh
+          </Button>
+        </div>
+      </div>
+
+      {dashboardData && (
+        <>
+          {/* Performance Overview */}
+          <Row gutter={16} style={{ marginBottom: 24 }}>
+            <Col span={6}>
+              <Card>
+                <Statistic
+                  title="Overall Compliance"
+                  value={dashboardData.performance.overall_compliance_score}
+                  suffix="%"
+                  valueStyle={{ 
+                    color: dashboardData.performance.overall_compliance_score >= 90 ? '#3f8600' : '#cf1322' 
+                  }}
+                  prefix={<CheckCircleOutlined />}
+                />
+              </Card>
+            </Col>
+            <Col span={6}>
+              <Card>
+                <Statistic
+                  title="Primary Products"
+                  value={dashboardData.performance.primary_owner_products}
+                  prefix={<UserOutlined />}
+                />
+              </Card>
+            </Col>
+            <Col span={6}>
+              <Card>
+                <Statistic
+                  title="Secondary Products"
+                  value={dashboardData.performance.secondary_access_products}
+                  prefix={<UserOutlined />}
+                />
+              </Card>
+            </Col>
+            <Col span={6}>
+              <Card>
+                <Statistic
+                  title="Critical Alerts"
+                  value={dashboardData.performance.critical_alerts_primary + dashboardData.performance.critical_alerts_secondary}
+                  valueStyle={{ color: '#cf1322' }}
+                  prefix={<AlertOutlined />}
+                />
+              </Card>
+            </Col>
+          </Row>
+
+          {/* Workload Status */}
+          <Row gutter={16} style={{ marginBottom: 24 }}>
+            <Col span={12}>
+              <Card title="Department Workload">
+                <div style={{ marginBottom: 16 }}>
+                  <Text strong>Capacity: </Text>
+                  <Progress
+                    percent={dashboardData.workload.capacity_percentage}
+                    strokeColor={getWorkloadColor(dashboardData.workload.status)}
+                    status={dashboardData.workload.capacity_percentage >= 85 ? 'exception' : 'normal'}
+                  />
+                </div>
+                <Row gutter={16}>
+                  <Col span={8}>
+                    <Statistic title="Primary Tasks" value={dashboardData.workload.primary_tasks_total} />
+                  </Col>
+                  <Col span={8}>
+                    <Statistic title="Secondary Tasks" value={dashboardData.workload.secondary_tasks_total} />
+                  </Col>
+                  <Col span={8}>
+                    <Statistic 
+                      title="Urgent" 
+                      value={dashboardData.workload.urgent_tasks} 
+                      valueStyle={{ color: '#cf1322' }}
+                    />
+                  </Col>
+                </Row>
+              </Card>
+            </Col>
+            <Col span={12}>
+              <Card title="Lark Base Sync Status">
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+                  <Badge 
+                    status={dashboardData.sync_status.status === 'healthy' ? 'success' : 'error'} 
+                    text={dashboardData.sync_status.status.toUpperCase()}
+                  />
+                  <Text type="secondary">
+                    Next sync: {new Date(dashboardData.sync_status.next_sync).toLocaleTimeString()}
+                  </Text>
+                </div>
+                <Text type="secondary">
+                  Last successful sync: {new Date(dashboardData.sync_status.last_sync).toLocaleString()}
+                </Text>
+              </Card>
+            </Col>
+          </Row>
+
+          {/* Recent Alerts & Cross-Department Tasks */}
+          <Row gutter={16}>
+            <Col span={12}>
+              <Card title="Recent Alerts" size="small">
+                <Timeline mode="left" style={{ maxHeight: 300, overflow: 'auto' }}>
+                  {dashboardData.recent_alerts.map((alert) => (
+                    <Timeline.Item
+                      key={alert.id}
+                      color={getPriorityColor(alert.priority)}
+                      dot={<ClockCircleOutlined />}
+                    >
+                      <div>
+                        <Badge status={getPriorityColor(alert.priority) as any} text={alert.priority.toUpperCase()} />
+                        <div style={{ marginTop: 4 }}>
+                          <Text strong>{alert.product_sku}</Text>
+                          <br />
+                          <Text type="secondary">{alert.message}</Text>
+                          <br />
+                          <Text type="secondary" style={{ fontSize: '12px' }}>
+                            {new Date(alert.created_at).toLocaleString()}
+                          </Text>
+                        </div>
+                      </div>
+                    </Timeline.Item>
+                  ))}
+                </Timeline>
+              </Card>
+            </Col>
+            <Col span={12}>
+              <Card title="Cross-Department Collaboration" size="small">
+                <div style={{ maxHeight: 300, overflow: 'auto' }}>
+                  {dashboardData.cross_department_tasks.map((task) => (
+                    <div key={task.id} style={{ marginBottom: 16, padding: 12, border: '1px solid #f0f0f0', borderRadius: 4 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <Badge 
+                          status={task.role === 'primary' ? 'processing' : 'default'} 
+                          text={task.role.toUpperCase()}
+                        />
+                        <Badge status={getPriorityColor(task.priority) as any} text={task.priority} />
+                      </div>
+                      <div style={{ marginTop: 8 }}>
+                        <Text strong>{task.product_sku}</Text>
+                        <br />
+                        <Text type="secondary">
+                          Collaborating with: {task.other_departments.join(', ')}
+                        </Text>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            </Col>
+          </Row>
+        </>
+      )}
+    </div>
+  );
+};
+
+export default RealTimeDepartmentDashboard;
+```
+
+## 5. DEPLOYMENT CONFIGURATION
+
+### 5.1 Docker Setup cho Laravel + React + Lark Integration
+```yaml
+# docker-compose.yml
 version: '3.8'
 
 services:
+  # Laravel Backend
   pim_backend:
-    build: .
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
     environment:
-      - DJANGO_SETTINGS_MODULE=pim.settings.production
+      - APP_ENV=production
       - LARK_APP_ID=${LARK_APP_ID}
       - LARK_APP_SECRET=${LARK_APP_SECRET}
       - LARK_BASE_TOKEN=${LARK_BASE_TOKEN}
+      - DB_HOST=mysql
+      - REDIS_HOST=redis
+      - PUSHER_APP_KEY=${PUSHER_APP_KEY}
+      - PUSHER_APP_SECRET=${PUSHER_APP_SECRET}
+      - PUSHER_APP_ID=${PUSHER_APP_ID}
     volumes:
-      - ./logs:/app/logs
+      - ./backend/storage:/var/www/storage
+      - ./logs:/var/www/storage/logs
     depends_on:
+      - mysql
       - redis
-      - postgres
-  
-  celery_worker:
-    build: .
-    command: celery -A pim worker -l info
+    networks:
+      - pim_network
+
+  # Queue Worker
+  queue_worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: php artisan queue:work --sleep=3 --tries=3 --max-time=3600
     environment:
-      - DJANGO_SETTINGS_MODULE=pim.settings.production
+      - APP_ENV=production
+      - QUEUE_CONNECTION=redis
+      - LARK_APP_ID=${LARK_APP_ID}
+      - LARK_APP_SECRET=${LARK_APP_SECRET}
+      - DB_HOST=mysql
+      - REDIS_HOST=redis
     depends_on:
+      - mysql
       - redis
-      - postgres
-  
-  celery_beat:
-    build: .
-    command: celery -A pim beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    networks:
+      - pim_network
+
+  # Scheduler
+  scheduler:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: php artisan schedule:work
+    environment:
+      - APP_ENV=production
+      - DB_HOST=mysql
+      - REDIS_HOST=redis
     depends_on:
+      - mysql
       - redis
-      - postgres
-  
+    networks:
+      - pim_network
+
+  # React Frontend
+  pim_frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    environment:
+      - REACT_APP_API_BASE_URL=http://localhost:8000/api
+      - REACT_APP_LARK_BASE_URL=${LARK_BASE_URL}
+      - REACT_APP_PUSHER_APP_KEY=${PUSHER_APP_KEY}
+      - REACT_APP_PUSHER_APP_CLUSTER=${PUSHER_APP_CLUSTER}
+    depends_on:
+      - pim_backend
+    networks:
+      - pim_network
+
+  # MySQL Database
+  mysql:
+    image: mysql:8.0
+    ports:
+      - "3306:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_DATABASE=pim_database
+      - MYSQL_USER=pim_user
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - pim_network
+
+  # Redis for Queue & Caching
   redis:
     image: redis:alpine
-    
-  postgres:
-    image: postgres:13
-    environment:
-      POSTGRES_DB: pim_db
-      POSTGRES_USER: pim_user
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "6379:6379"
+    networks:
+      - pim_network
+
+volumes:
+  mysql_data:
+
+networks:
+  pim_network:
+    driver: bridge
 ```
 
-## 7. TESTING & VALIDATION PLAN
+## 6. TESTING & VALIDATION PLAN
 
-### 7.1 Department Role Testing
-```python
-# tests/test_department_roles.py
-import pytest
-from django.test import TestCase
-from pim.models import Product, Department, Alert
-from pim.services.department_service import calculate_department_performance_with_roles
+### 6.1 Laravel Backend Testing
 
-class DepartmentRoleTestCase(TestCase):
-    def setUp(self):
-        self.rnd_dept = Department.objects.create(code='RND', name='Research & Development')
-        self.mkt_dept = Department.objects.create(code='MKT', name='Marketing')
+#### 6.1.1 Department Role Testing
+```php
+// tests/Feature/DepartmentRoleTest.php
+<?php
+
+namespace Tests\Feature;
+
+use Tests\TestCase;
+use App\Models\Product;
+use App\Models\Department;
+use App\Models\Alert;
+use App\Services\DepartmentService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+
+class DepartmentRoleTest extends TestCase
+{
+    use RefreshDatabase;
+
+    private DepartmentService $departmentService;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->departmentService = app(DepartmentService::class);
         
-    def test_primary_owner_responsibility(self):
-        """
-        Test Primary Owner có full responsibility
-        """
-        product = Product.objects.create(
-            sku='TEST-001',
-            name='Test Product',
-            primary_owner_department='RND',
-            secondary_access_departments=['MKT', 'ECOM']
-        )
+        // Create test departments
+        Department::factory()->create(['code' => 'RND', 'name' => 'Research & Development']);
+        Department::factory()->create(['code' => 'MKT', 'name' => 'Marketing']);
+    }
+
+    public function test_primary_owner_responsibility(): void
+    {
+        // Create product with RND as primary owner, MKT as secondary
+        $product = Product::factory()->create([
+            'code' => 'TEST-001',
+            'name' => 'Test Product',
+            'primary_owner_department' => 'RND',
+            'secondary_access_departments' => ['MKT', 'ECOM']
+        ]);
+
+        // RND should have primary responsibility
+        $rndMetrics = $this->departmentService->calculateDepartmentMetricsWithRoles('RND');
+        $this->assertEquals(1, $rndMetrics['primary_owner_products']);
+
+        // MKT should have secondary involvement
+        $mktMetrics = $this->departmentService->calculateDepartmentMetricsWithRoles('MKT');
+        $this->assertEquals(1, $mktMetrics['secondary_access_products']);
+        $this->assertEquals(0, $mktMetrics['primary_owner_products']);
+    }
+
+    public function test_alert_routing_by_department_role(): void
+    {
+        $product = Product::factory()->create([
+            'primary_owner_department' => 'RND'
+        ]);
+
+        $alert = Alert::factory()->create([
+            'product_id' => $product->id,
+            'primary_responsible_department' => 'RND',
+            'secondary_involved_departments' => ['MKT'],
+            'priority' => 'critical',
+            'message' => 'Test alert'
+        ]);
+
+        // Test alert belongs to correct department
+        $this->assertEquals('RND', $alert->primary_responsible_department);
+        $this->assertContains('MKT', $alert->secondary_involved_departments);
+    }
+
+    public function test_department_compliance_calculation(): void
+    {
+        // Create products with different compliance levels
+        $products = collect([
+            Product::factory()->create([
+                'primary_owner_department' => 'RND',
+                'compliance_percentage' => 95
+            ]),
+            Product::factory()->create([
+                'primary_owner_department' => 'RND', 
+                'compliance_percentage' => 85
+            ])
+        ]);
+
+        $metrics = $this->departmentService->calculateDepartmentMetricsWithRoles('RND');
         
-        # RND should have primary responsibility
-        rnd_metrics = calculate_department_performance_with_roles('RND')
-        self.assertEqual(rnd_metrics['primary_metrics']['total_products'], 1)
-        
-        # MKT should have secondary involvement  
-        mkt_metrics = calculate_department_performance_with_roles('MKT')
-        self.assertEqual(mkt_metrics['secondary_metrics']['total_products'], 1)
-        self.assertEqual(mkt_metrics['primary_metrics']['total_products'], 0)
-    
-    def test_alert_routing_by_department_role(self):
-        """
-        Test alert được route đúng theo department role
-        """
-        alert = Alert.objects.create(
-            sku='TEST-001',
-            primary_responsible_department='RND',
-            secondary_involved_departments=['MKT'],
-            severity='CRITICAL',
-            message='Test alert'
-        )
-        
-        # Check routing logic
-        routing = get_alert_routing(alert)
-        self.assertEqual(routing['primary_notifications'][0]['department'], 'RND')
-        self.assertEqual(routing['secondary_notifications'][0]['department'], 'MKT')
-        self.assertTrue(routing['primary_notifications'][0]['action_required'])
-        self.assertFalse(routing['secondary_notifications'][0]['action_required'])
+        $this->assertEquals(2, $metrics['primary_owner_products']);
+        $this->assertEquals(90, $metrics['primary_compliance_score']); // Average of 95 and 85
+    }
+}
 ```
 
-### 7.2 Integration Testing với Lark Base
-```python
-# tests/test_lark_integration.py
-class LarkBaseIntegrationTest(TestCase):
-    def setUp(self):
-        self.lark_api = LarkBaseAPI()
-        self.test_data = create_test_department_data()
-    
-    def test_department_data_sync(self):
-        """
-        Test đồng bộ data với department context sang Lark Base
-        """
-        # Sync test data
-        result = self.lark_api.sync_department_performance(self.test_data)
+#### 6.1.2 Lark Base Integration Testing
+```php
+// tests/Feature/LarkBaseIntegrationTest.php
+<?php
+
+namespace Tests\Feature;
+
+use Tests\TestCase;
+use App\Services\LarkBaseService;
+use App\Models\Product;
+use App\Models\Alert;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
+
+class LarkBaseIntegrationTest extends TestCase
+{
+    use RefreshDatabase;
+
+    private LarkBaseService $larkService;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->larkService = app(LarkBaseService::class);
+    }
+
+    public function test_department_data_sync(): void
+    {
+        // Mock Lark API responses
+        Http::fake([
+            '*/auth/v3/tenant_access_token/internal' => Http::response([
+                'code' => 0,
+                'tenant_access_token' => 'mock_token',
+                'expire' => 7200
+            ]),
+            '*/bitable/v1/apps/*/tables/*/records/*' => Http::response([
+                'code' => 0,
+                'data' => ['record' => ['record_id' => 'test_record_id']]
+            ])
+        ]);
+
+        $product = Product::factory()->create([
+            'code' => 'TEST-SKU',
+            'primary_owner_department' => 'RND'
+        ]);
+
+        $departmentData = [
+            'primary_owner_department' => 'RND',
+            'secondary_access_departments' => ['MKT'],
+            'primary_responsible_person' => 'John Doe',
+            'compliance_percentage' => 95.5,
+            'critical_alerts_count' => 2
+        ];
+
+        $result = $this->larkService->updateProductWithDepartmentInfo('TEST-SKU', $departmentData);
+
+        $this->assertEquals(0, $result['code']);
         
-        # Verify sync success
-        self.assertEqual(result['code'], 0)
+        // Verify HTTP requests were made
+        Http::assertSent(function ($request) {
+            return str_contains($request->url(), '/records/');
+        });
+    }
+
+    public function test_alert_creation_in_lark(): void
+    {
+        Http::fake([
+            '*/auth/v3/tenant_access_token/internal' => Http::response([
+                'code' => 0,
+                'tenant_access_token' => 'mock_token',
+                'expire' => 7200
+            ]),
+            '*/bitable/v1/apps/*/tables/*/records' => Http::response([
+                'code' => 0,
+                'data' => ['records' => [['record_id' => 'new_record_id']]]
+            ])
+        ]);
+
+        $alertData = [
+            'id' => 'ALERT-123',
+            'created_at' => now(),
+            'priority' => 'Critical',
+            'sku' => 'TEST-SKU',
+            'primary_responsible_department' => 'RND',
+            'secondary_involved_departments' => ['MKT'],
+            'message' => 'Test alert message',
+            'due_date' => now()->addDays(7),
+            'primary_assigned_person' => 'Jane Doe',
+            'secondary_notified_persons' => ['John Smith']
+        ];
+
+        $result = $this->larkService->createDepartmentAlert($alertData);
+
+        $this->assertEquals(0, $result['code']);
         
-        # Verify data accuracy trong Lark Base
-        synced_data = self.lark_api.get_department_record('RND')
-        self.assertEqual(synced_data['primary_products'], self.test_data['primary_products'])
-    
-    def test_real_time_notification(self):
-        """
-        Test real-time notification đến đúng department groups
-        """
-        alert = create_test_alert(
-            primary_dept='RND',
-            secondary_depts=['MKT', 'ECOM']
-        )
+        Http::assertSent(function ($request) {
+            $body = json_decode($request->body(), true);
+            return isset($body['records'][0]['fields']['fld_alert_id']) && 
+                   $body['records'][0]['fields']['fld_alert_id'] === 'ALERT-123';
+        });
+    }
+
+    public function test_access_token_caching(): void
+    {
+        Http::fake([
+            '*/auth/v3/tenant_access_token/internal' => Http::response([
+                'code' => 0,
+                'tenant_access_token' => 'cached_token',
+                'expire' => 7200
+            ])
+        ]);
+
+        // First call should hit the API
+        $token1 = $this->larkService->getAccessToken();
         
-        # Send notifications
-        notifications_sent = send_department_alert_notification(alert)
+        // Second call should use cached token
+        $token2 = $this->larkService->getAccessToken();
+
+        $this->assertEquals($token1, $token2);
         
-        # Verify notifications sent to correct groups
-        self.assertEqual(len(notifications_sent['primary']), 1)
-        self.assertEqual(len(notifications_sent['secondary']), 2)
-        self.assertEqual(notifications_sent['primary'][0]['group_id'], 'rnd_group_id')
+        // Should only make one HTTP request due to caching
+        Http::assertSentCount(1);
+    }
+}
+```
+
+### 6.2 React Frontend Testing
+
+#### 6.2.1 Lark Integration Component Testing
+```tsx
+// src/components/__tests__/LarkIntegrationDashboard.test.tsx
+import React from 'react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { message } from 'antd';
+import LarkIntegrationDashboard from '../lark/LarkIntegrationDashboard';
+import { larkIntegrationService } from '../../services/larkIntegrationService';
+
+// Mock the service
+jest.mock('../../services/larkIntegrationService');
+const mockLarkService = larkIntegrationService as jest.Mocked<typeof larkIntegrationService>;
+
+// Mock antd message
+jest.mock('antd', () => ({
+  ...jest.requireActual('antd'),
+  message: {
+    success: jest.fn(),
+    error: jest.fn(),
+  },
+}));
+
+const createQueryClient = () =>
+  new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
+  });
+
+const renderWithQueryClient = (component: React.ReactElement) => {
+  const queryClient = createQueryClient();
+  return render(
+    <QueryClientProvider client={queryClient}>
+      {component}
+    </QueryClientProvider>
+  );
+};
+
+describe('LarkIntegrationDashboard', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('should render sync status correctly', async () => {
+    mockLarkService.getSyncStatus.mockResolvedValue([
+      {
+        sync_type: 'products',
+        last_sync: '2024-01-01T10:00:00Z',
+        status: 'success',
+        records_processed: 150,
+      },
+      {
+        sync_type: 'alerts',
+        last_sync: '2024-01-01T10:15:00Z',
+        status: 'failed',
+        records_processed: 0,
+        error_message: 'API rate limit exceeded',
+      },
+    ]);
+
+    renderWithQueryClient(<LarkIntegrationDashboard />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Products Synced')).toBeInTheDocument();
+      expect(screen.getByText('150')).toBeInTheDocument();
+      expect(screen.getByText('Success')).toBeInTheDocument();
+      expect(screen.getByText('Failed')).toBeInTheDocument();
+    });
+  });
+
+  it('should trigger sync when button is clicked', async () => {
+    mockLarkService.getSyncStatus.mockResolvedValue([]);
+    mockLarkService.triggerSync.mockResolvedValue();
+
+    renderWithQueryClient(<LarkIntegrationDashboard />);
+
+    const syncButton = screen.getByRole('button', { name: /sync now/i });
+    fireEvent.click(syncButton);
+
+    await waitFor(() => {
+      expect(mockLarkService.triggerSync).toHaveBeenCalledWith('products');
+      expect(message.success).toHaveBeenCalledWith('products sync triggered successfully');
+    });
+  });
+
+  it('should send test notification', async () => {
+    mockLarkService.sendTestNotification.mockResolvedValue();
+
+    renderWithQueryClient(<LarkIntegrationDashboard />);
+
+    // Select department
+    const departmentSelect = screen.getByRole('combobox');
+    fireEvent.change(departmentSelect, { target: { value: 'RND' } });
+
+    // Enter test message
+    const messageInput = screen.getByPlaceholderText('Test message');
+    fireEvent.change(messageInput, { target: { value: 'Test notification message' } });
+
+    // Click send test button
+    const sendButton = screen.getByRole('button', { name: /send test/i });
+    fireEvent.click(sendButton);
+
+    await waitFor(() => {
+      expect(mockLarkService.sendTestNotification).toHaveBeenCalledWith(
+        'RND',
+        'Test notification message'
+      );
+      expect(message.success).toHaveBeenCalledWith('Test notification sent successfully');
+    });
+  });
+
+  it('should display department metrics', async () => {
+    mockLarkService.getDepartmentMetrics.mockResolvedValue([
+      {
+        department: 'RND',
+        primary_products: 25,
+        secondary_products: 10,
+        overall_compliance: 92,
+        critical_alerts: 3,
+        trend: 'improving',
+      },
+      {
+        department: 'MKT',
+        primary_products: 18,
+        secondary_products: 15,
+        overall_compliance: 88,
+        critical_alerts: 1,
+        trend: 'stable',
+      },
+    ]);
+
+    renderWithQueryClient(<LarkIntegrationDashboard />);
+
+    await waitFor(() => {
+      expect(screen.getByText('RND')).toBeInTheDocument();
+      expect(screen.getByText('25')).toBeInTheDocument(); // Primary products
+      expect(screen.getByText('92%')).toBeInTheDocument(); // Compliance
+      expect(screen.getByText('MKT')).toBeInTheDocument();
+    });
+  });
+});
+```
+
+#### 6.2.2 Real-time Dashboard Testing
+```tsx
+// src/components/__tests__/RealTimeDepartmentDashboard.test.tsx
+import React from 'react';
+import { render, screen, waitFor } from '@testing-library/react';
+import RealTimeDepartmentDashboard from '../dashboard/RealTimeDepartmentDashboard';
+
+// Mock Laravel Echo
+const mockEcho = {
+  private: jest.fn().mockReturnThis(),
+  channel: jest.fn().mockReturnThis(),
+  listen: jest.fn(),
+  leave: jest.fn(),
+};
+
+global.fetch = jest.fn();
+window.Echo = mockEcho;
+
+describe('RealTimeDepartmentDashboard', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (fetch as jest.MockedFunction<typeof fetch>).mockResolvedValue({
+      json: () => Promise.resolve({
+        success: true,
+        data: {
+          department: 'RND',
+          timestamp: '2024-01-01T10:00:00Z',
+          performance: {
+            overall_compliance_score: 95,
+            critical_alerts_primary: 2,
+            critical_alerts_secondary: 1,
+            primary_owner_products: 25,
+            secondary_access_products: 10,
+          },
+          recent_alerts: [],
+          workload: {
+            primary_tasks_total: 5,
+            secondary_tasks_total: 3,
+            urgent_tasks: 1,
+            capacity_percentage: 60,
+            status: 'normal',
+          },
+          cross_department_tasks: [],
+          sync_status: {
+            last_sync: '2024-01-01T09:45:00Z',
+            status: 'healthy',
+            next_sync: '2024-01-01T10:15:00Z',
+          },
+        },
+      }),
+    } as Response);
+  });
+
+  it('should render department dashboard correctly', async () => {
+    render(<RealTimeDepartmentDashboard department="RND" userId="user123" />);
+
+    await waitFor(() => {
+      expect(screen.getByText('RND Department Dashboard')).toBeInTheDocument();
+      expect(screen.getByText('95')).toBeInTheDocument(); // Compliance score
+      expect(screen.getByText('25')).toBeInTheDocument(); // Primary products
+    });
+  });
+
+  it('should setup real-time connections', () => {
+    render(<RealTimeDepartmentDashboard department="RND" userId="user123" />);
+
+    expect(mockEcho.private).toHaveBeenCalledWith('department-dashboard.RND');
+    expect(mockEcho.channel).toHaveBeenCalledWith('lark-integration-updates');
+  });
+
+  it('should display workload status correctly', async () => {
+    render(<RealTimeDepartmentDashboard department="RND" userId="user123" />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Department Workload')).toBeInTheDocument();
+      expect(screen.getByText('Primary Tasks')).toBeInTheDocument();
+      expect(screen.getByText('5')).toBeInTheDocument(); // Primary tasks count
+    });
+  });
+});
+```
+
+### 6.3 Integration Testing với Mock Lark API
+```php
+// tests/Feature/EndToEndLarkIntegrationTest.php
+<?php
+
+namespace Tests\Feature;
+
+use Tests\TestCase;
+use App\Jobs\SyncProductsToLarkJob;
+use App\Jobs\SyncDepartmentAlertsJob;
+use App\Models\Product;
+use App\Models\Alert;
+use App\Models\LarkSyncStatus;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
+
+class EndToEndLarkIntegrationTest extends TestCase
+{
+    use RefreshDatabase;
+
+    public function test_complete_product_sync_workflow(): void
+    {
+        Queue::fake();
+        
+        // Mock Lark API
+        Http::fake([
+            '*/auth/v3/tenant_access_token/internal' => Http::response([
+                'code' => 0,
+                'tenant_access_token' => 'test_token',
+                'expire' => 7200
+            ]),
+            '*/bitable/v1/apps/*/tables/*/records/batch_create' => Http::response([
+                'code' => 0,
+                'data' => ['records' => []]
+            ])
+        ]);
+
+        // Create test data
+        Product::factory()->count(5)->create([
+            'primary_owner_department' => 'RND'
+        ]);
+
+        // Dispatch sync job
+        SyncProductsToLarkJob::dispatch();
+        
+        // Assert job was queued
+        Queue::assertPushed(SyncProductsToLarkJob::class);
+        
+        // Execute the job
+        $job = new SyncProductsToLarkJob();
+        $job->handle(
+            app(\App\Services\LarkBaseService::class),
+            app(\App\Services\DepartmentService::class)
+        );
+
+        // Verify API calls were made
+        Http::assertSent(function ($request) {
+            return str_contains($request->url(), '/batch_create');
+        });
+
+        // Verify sync status was recorded
+        $this->assertDatabaseHas('lark_sync_status', [
+            'sync_type' => 'products',
+            'status' => 'success'
+        ]);
+    }
+
+    public function test_alert_notification_workflow(): void
+    {
+        Http::fake([
+            '*/auth/v3/tenant_access_token/internal' => Http::response([
+                'code' => 0,
+                'tenant_access_token' => 'test_token',
+                'expire' => 7200
+            ]),
+            '*/im/v1/messages' => Http::response([
+                'code' => 0,
+                'data' => ['message_id' => 'msg_123']
+            ]),
+            '*/bitable/v1/apps/*/tables/*/records' => Http::response([
+                'code' => 0,
+                'data' => ['records' => [['record_id' => 'alert_record_123']]]
+            ])
+        ]);
+
+        $product = Product::factory()->create([
+            'primary_owner_department' => 'RND'
+        ]);
+
+        $alert = Alert::factory()->create([
+            'product_id' => $product->id,
+            'primary_responsible_department' => 'RND',
+            'secondary_involved_departments' => ['MKT'],
+            'priority' => 'critical',
+            'sync_status' => 'pending'
+        ]);
+
+        // Execute alert sync job
+        $job = new SyncDepartmentAlertsJob();
+        $job->handle(
+            app(\App\Services\LarkBaseService::class),
+            app(\App\Services\NotificationService::class)
+        );
+
+        // Verify alert was synced to Lark Base
+        Http::assertSent(function ($request) {
+            return str_contains($request->url(), '/records') && 
+                   str_contains($request->body(), 'RND');
+        });
+
+        // Verify notifications were sent
+        Http::assertSent(function ($request) {
+            return str_contains($request->url(), '/messages');
+        });
+
+        // Verify alert status was updated
+        $alert->refresh();
+        $this->assertEquals('synced', $alert->sync_status);
+    }
+}
 ```
 
 ---

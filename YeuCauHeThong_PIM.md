@@ -529,24 +529,41 @@ Xây dựng hệ thống quản lý thông tin sản phẩm tập trung, cho ph�
 ```
 
 **B. Quy tắc kiểm tra tài liệu**
-1. **Tài liệu bắt buộc theo sản phẩm**
+1. **Kiểm tra completeness thông tin sản phẩm**
+   - Kiểm tra các trường thông tin bắt buộc đã được điền đầy đủ chưa
+   - Xác định trường nào còn thiếu hoặc chưa hoàn thiện
+   - Cảnh báo khi thông tin không đủ chi tiết
+
+2. **Tài liệu bắt buộc theo sản phẩm**
    - Kiểm tra sản phẩm có đầy đủ tài liệu bắt buộc không
    - Xác định tài liệu nào còn thiếu dựa trên danh mục
 
-2. **Tài liệu bắt buộc theo lô hàng**
+3. **Tài liệu bắt buộc theo lô hàng**
    - Mỗi lô hàng mới phải có đủ tài liệu bắt buộc
    - Kiểm tra trong vòng X ngày sau khi tạo lô hàng
 
-3. **Tài liệu có thời hạn hiệu lực**
+4. **Tài liệu có thời hạn hiệu lực**
    - Giấy phép quảng cáo, đăng ký lưu hành có ngày hết hạn
    - Cảnh báo trước 30, 15, 7, 1 ngày hết hạn
 
 **C. Ma trận kiểm tra theo đối tượng**
 
-| Đối tượng | Tài liệu bắt buộc | Thời gian check | Cảnh báo |
-|-----------|-------------------|-----------------|----------|
-| **Sản phẩm mới** |
-| - | Mô tả sản phẩm (RnD) | Ngay khi tạo | Ngay lập tức |
+| Đối tượng | Tài liệu/Thông tin bắt buộc | Thời gian check | Cảnh báo |
+|-----------|---------------------------|-----------------|----------|
+| **Thông tin sản phẩm cơ bản** |
+| - | Thương hiệu | Ngay khi tạo | Ngay lập tức |
+| - | Mô tả sản phẩm | Ngay khi tạo | Ngay lập tức |
+| - | Thông tin chung | Trong 2h | Sau 2h |
+| - | Quy cách | Trong 4h | Sau 4h |
+| - | Thành phần | Trong 6h | Sau 6h |
+| - | Công dụng | Trong 8h | Sau 8h |
+| - | HDSD (Hướng dẫn sử dụng) | Trong 12h | Sau 12h |
+| - | Bảo quản | Trong 12h | Sau 12h |
+| **Thông tin sản phẩm mở rộng** |
+| - | Lý do phát triển sản phẩm & Xu hướng thị trường | Trong 24h | Sau 24h |
+| - | Sản phẩm tương tự | Trong 48h | Sau 48h |
+| - | Ưu điểm cạnh tranh/USP | Trong 72h | Sau 72h |
+| **Tài liệu sản phẩm** |
 | - | Market sản phẩm, ảnh gốc (RnD) | Trong 24h | Sau 24h |
 | **Lô hàng mới** |
 | - | Hợp đồng mua bán | Trong 3 ngày | Sau 3 ngày |
@@ -562,13 +579,80 @@ Xây dựng hệ thống quản lý thông tin sản phẩm tập trung, cho ph�
 ```json
 {
   "document_check_rules": {
-    "product_mandatory_docs": {
-      "RnD": {
+    "product_info_fields": {
+      "basic_info": {
+        "thuong_hieu": {
+          "required": true,
+          "check_after_hours": 0,
+          "reminder_intervals": [0, 1, 2],
+          "validation_rules": ["not_empty", "min_length:2"]
+        },
         "mo_ta_san_pham": {
           "required": true,
           "check_after_hours": 0,
-          "reminder_intervals": [0]
+          "reminder_intervals": [0, 1, 2],
+          "validation_rules": ["not_empty", "min_length:10"]
         },
+        "thong_tin_chung": {
+          "required": true,
+          "check_after_hours": 2,
+          "reminder_intervals": [2, 4, 8],
+          "validation_rules": ["not_empty", "min_length:20"]
+        },
+        "quy_cach": {
+          "required": true,
+          "check_after_hours": 4,
+          "reminder_intervals": [4, 8, 12],
+          "validation_rules": ["not_empty", "contains_unit"]
+        },
+        "thanh_phan": {
+          "required": true,
+          "check_after_hours": 6,
+          "reminder_intervals": [6, 12, 18],
+          "validation_rules": ["not_empty", "min_length:15"]
+        },
+        "cong_dung": {
+          "required": true,
+          "check_after_hours": 8,
+          "reminder_intervals": [8, 16, 24],
+          "validation_rules": ["not_empty", "min_length:20"]
+        },
+        "hdsd": {
+          "required": true,
+          "check_after_hours": 12,
+          "reminder_intervals": [12, 24, 36],
+          "validation_rules": ["not_empty", "contains_steps"]
+        },
+        "bao_quan": {
+          "required": true,
+          "check_after_hours": 12,
+          "reminder_intervals": [12, 24, 36],
+          "validation_rules": ["not_empty", "contains_conditions"]
+        }
+      },
+      "extended_info": {
+        "ly_do_phat_trien": {
+          "required": true,
+          "check_after_hours": 24,
+          "reminder_intervals": [24, 48, 72],
+          "validation_rules": ["not_empty", "min_length:50"]
+        },
+        "san_pham_tuong_tu": {
+          "required": true,
+          "check_after_hours": 48,
+          "reminder_intervals": [48, 96, 144],
+          "validation_rules": ["not_empty", "has_comparison"]
+        },
+        "usp_canh_tranh": {
+          "required": true,
+          "check_after_hours": 72,
+          "reminder_intervals": [72, 144, 216],
+          "validation_rules": ["not_empty", "min_length:30", "has_unique_points"]
+        }
+      }
+    },
+    "product_mandatory_docs": {
+      "RnD": {
         "anh_goc_san_pham": {
           "required": true,
           "check_after_hours": 24,
@@ -592,6 +676,104 @@ Xây dựng hệ thống quản lý thông tin sản phẩm tập trung, cho ph�
     }
   }
 }
+```
+
+**E. Chi tiết Validation Rules cho thông tin sản phẩm**
+
+| Trường thông tin | Rule | Mô tả | Ví dụ fail | Ví dụ pass |
+|------------------|------|--------|------------|------------|
+| **Thương hiệu** | `not_empty` | Không được để trống | "" | "ABC Brand" |
+| | `min_length:2` | Tối thiểu 2 ký tự | "A" | "AB" |
+| **Mô tả sản phẩm** | `not_empty` | Không được để trống | "" | "Sản phẩm chăm sóc da..." |
+| | `min_length:10` | Tối thiểu 10 ký tự | "Kem dưỡng" | "Kem dưỡng ẩm cho da khô" |
+| **Thông tin chung** | `not_empty` | Không được để trống | "" | "Sản phẩm dành cho..." |
+| | `min_length:20` | Tối thiểu 20 ký tự | "Cho da khô" | "Sản phẩm dành cho da khô, giúp cung cấp độ ẩm" |
+| **Quy cách** | `not_empty` | Không được để trống | "" | "Tube 50ml" |
+| | `contains_unit` | Phải có đơn vị đo | "Tube 50" | "Tube 50ml" hoặc "Hộp 100g" |
+| **Thành phần** | `not_empty` | Không được để trống | "" | "Aqua, Glycerin, ..." |
+| | `min_length:15` | Tối thiểu 15 ký tự | "Nước, dầu" | "Aqua, Glycerin, Cetyl Alcohol" |
+| **Công dụng** | `not_empty` | Không được để trống | "" | "Dưỡng ẩm cho da" |
+| | `min_length:20` | Tối thiểu 20 ký tự | "Dưỡng ẩm" | "Dưỡng ẩm sâu, làm mềm mượt da" |
+| **HDSD** | `not_empty` | Không được để trống | "" | "Bước 1: Làm sạch da..." |
+| | `contains_steps` | Phải có các bước | "Thoa lên da" | "Bước 1: Làm sạch, Bước 2: Thoa đều" |
+| **Bảo quản** | `not_empty` | Không được để trống | "" | "Nơi khô ráo, thoáng mát" |
+| | `contains_conditions` | Phải có điều kiện | "Để ở nơi khô" | "Nhiệt độ dưới 30°C, tránh ánh sáng trực tiếp" |
+| **Lý do phát triển** | `not_empty` | Không được để trống | "" | "Đáp ứng nhu cầu thị trường..." |
+| | `min_length:50` | Tối thiểu 50 ký tự | "Nhu cầu cao" | "Đáp ứng nhu cầu ngày càng tăng về sản phẩm chăm sóc da tự nhiên" |
+| **Sản phẩm tương tự** | `not_empty` | Không được để trống | "" | "Brand X - Product Y: giá 200k..." |
+| | `has_comparison` | Phải có so sánh | "Có sản phẩm khác" | "Brand X - Product Y: giá 200k, chất lượng tương đương nhưng không có vitamin E" |
+| **USP/Ưu điểm** | `not_empty` | Không được để trống | "" | "Công thức độc quyền..." |
+| | `min_length:30` | Tối thiểu 30 ký tự | "Tốt nhất" | "Công thức độc quyền với vitamin E từ thiên nhiên" |
+| | `has_unique_points` | Phải có điểm khác biệt | "Sản phẩm tốt" | "Duy nhất chứa 15% vitamin E, thấm nhanh trong 30 giây" |
+
+**F. Logic kiểm tra tự động**
+```python
+def validate_product_field(field_name, value, rules):
+    """
+    Validate product field theo rules đã định nghĩa
+    """
+    errors = []
+    
+    # Check not_empty
+    if "not_empty" in rules and (not value or value.strip() == ""):
+        errors.append(f"{field_name} không được để trống")
+    
+    # Check min_length
+    for rule in rules:
+        if rule.startswith("min_length:"):
+            min_len = int(rule.split(":")[1])
+            if len(value.strip()) < min_len:
+                errors.append(f"{field_name} phải có tối thiểu {min_len} ký tự")
+    
+    # Check specific rules
+    if "contains_unit" in rules:
+        units = ["ml", "g", "kg", "l", "mg", "gam", "lít", "viên", "gói", "hộp"]
+        if not any(unit in value.lower() for unit in units):
+            errors.append(f"{field_name} phải có đơn vị đo (ml, g, kg, etc.)")
+    
+    if "contains_steps" in rules:
+        step_indicators = ["bước", "step", "1.", "2.", "đầu tiên", "sau đó", "cuối cùng"]
+        if not any(indicator in value.lower() for indicator in step_indicators):
+            errors.append(f"{field_name} phải có các bước hướng dẫn rõ ràng")
+    
+    if "contains_conditions" in rules:
+        conditions = ["nhiệt độ", "độ ẩm", "tránh", "nơi", "°c", "khô", "ẩm", "mát"]
+        if not any(condition in value.lower() for condition in conditions):
+            errors.append(f"{field_name} phải có điều kiện bảo quản cụ thể")
+    
+    return errors
+
+# Example usage
+def check_product_completeness(product_id):
+    """
+    Kiểm tra tính đầy đủ của thông tin sản phẩm
+    """
+    product = get_product_by_id(product_id)
+    validation_config = get_validation_config()
+    
+    all_errors = []
+    warnings = []
+    
+    # Check basic info fields
+    for field_name, config in validation_config["basic_info"].items():
+        field_value = getattr(product, field_name, "")
+        rules = config.get("validation_rules", [])
+        
+        errors = validate_product_field(field_name, field_value, rules)
+        if errors:
+            check_time = config["check_after_hours"] 
+            if product.created_hours_ago > check_time:
+                all_errors.extend(errors)
+            else:
+                warnings.extend(errors)
+    
+    return {
+        "product_id": product_id,
+        "errors": all_errors,
+        "warnings": warnings,
+        "completeness_score": calculate_completeness_score(product),
+        "next_check": calculate_next_check_time(product)
+    }
 ```
 
 ##### 8.1.3.3 Hệ thống cảnh báo và thông báo theo phòng ban
@@ -624,21 +806,32 @@ Xây dựng hệ thống quản lý thông tin sản phẩm tập trung, cho ph�
 
 **C. Template thông báo**
 
-*Ví dụ Email Template:*
+*Ví dụ Email Template với thông tin sản phẩm:*
 ```
-Subject: [PIM-PUR] Cảnh báo tài liệu cần xử lý - SKU: ABC123
+Subject: [PIM-RND] Cảnh báo thông tin sản phẩm & tài liệu - SKU: ABC123
 
-Xin chào [Tên người dùng] - Phòng Mua hàng,
+Xin chào [Tên người dùng] - Phòng Nghiên cứu & Phát triển,
 
 Hệ thống PIM phát hiện các vấn đề sau thuộc trách nhiệm của phòng ban bạn:
 
-🔴 CRITICAL - PHÒNG MUA HÀNG (PUR) CHỊU TRÁCH NHIỆM:
-- Sản phẩm ABC123: Thiếu "Hợp đồng mua bán" cho lô hàng LH001 (Quá hạn 2 ngày)
-  → Người phụ trách: Nguyễn Văn A (PUR)
-  → Hạn chót đã qua: 15/10/2025
+🔴 CRITICAL - THÔNG TIN SẢN PHẨM THIẾU (RND CHỊU TRÁCH NHIỆM):
+- SKU: ABC123 - "Kem dưỡng ẩm ABC"
+  ❌ Thiếu trường "Thành phần": Quá hạn 2 giờ (phải hoàn thành trong 6h)
+  ❌ Thiếu trường "Công dụng": Quá hạn 4 giờ (phải hoàn thành trong 8h)
+  → Completeness Score: 60% (cần đạt 100%)
+  → Người phụ trách: Nguyễn Văn C (RND)
 
-⚠️ WARNING - PHÒNG NGHIÊN CỨU & PHÁT TRIỂN (RND) CHỊU TRÁCH NHIỆM:
-- Sản phẩm ABC123: "Giấy công bố" sẽ hết hạn sau 7 ngày (25/10/2025)
+🔴 CRITICAL - TÀI LIỆU THIẾU (RND CHỊU TRÁCH NHIỆM):
+- SKU: ABC123: Thiếu "Ảnh sản phẩm gốc" (Quá hạn 6 giờ)
+  → Hạn chót đã qua: 17/10/2025 18:00
+
+⚠️ WARNING - THÔNG TIN SẢN PHẨM SẮP ĐẾN HẠN:
+- SKU: ABC123: "Lý do phát triển & Xu hướng thị trường" cần hoàn thành trong 2 giờ
+- SKU: ABC123: "Sản phẩm tương tự" cần hoàn thành trong 8 giờ
+
+📄 THÔNG TIN LIÊN QUAN:
+- Phòng Marketing (MKT) đang chờ thông tin để tạo content
+- Phòng E-commerce (ECOM) cần "Mô tả sản phẩm" để đăng bán
   → Người phụ trách: Trần Thị B (RND)
   → Phòng liên quan: Legal (LEG) cần được thông báo
 
@@ -655,15 +848,54 @@ Hệ thống PIM
 
 ##### 8.1.3.4 Dashboard cảnh báo
 
-**A. Widget tổng quan**
-- Tổng số cảnh báo theo mức độ
-- Biểu đồ xu hướng theo thời gian
-- Top 5 sản phẩm có nhiều cảnh báo nhất
+**A. Widget tổng quan với Product Completeness**
+```
+┌─ PRODUCT INFORMATION COMPLETENESS ───────────────┐
+│                                                  │
+│ 📊 Tổng quan thông tin sản phẩm:                 │
+│ • Hoàn thiện 100%: 45 sản phẩm (75%)            │
+│ • Thiếu thông tin:  12 sản phẩm (20%)            │
+│ • Mới tạo/Draft:     3 sản phẩm (5%)             │
+│                                                  │
+│ 🔥 Critical Info Missing:                        │
+│ • Thương hiệu: 2 sản phẩm                        │
+│ • Thành phần: 5 sản phẩm                         │
+│ • Công dụng: 3 sản phẩm                          │
+│                                                  │
+│ ⏰ Upcoming Deadlines:                           │
+│ • SKU123: Lý do phát triển (còn 2h)             │
+│ • SKU456: USP/Ưu điểm (còn 5h)                  │
+└──────────────────────────────────────────────────┘
 
-**B. Danh sách chi tiết**
-- Filter theo mức độ, phòng ban, loại tài liệu
-- Sort theo ngày tạo, mức độ ưu tiên
-- Action buttons: Xem chi tiết, Đánh dấu đã xử lý
+┌─ DOCUMENT ALERTS ────────────────────────────────┐
+│ 🔴 Critical: 8   ⚠️ Warning: 15   ℹ️ Info: 23     │
+│                                                  │
+│ Top Issues by Category:                          │
+│ • Product Info Missing: 8                        │
+│ • Document Missing: 12                           │
+│ • Expiry Soon: 6                                 │
+└──────────────────────────────────────────────────┘
+```
+
+- Biểu đồ completeness score theo thời gian
+- Heatmap thiếu thông tin theo phòng ban
+- Progress tracking cho từng sản phẩm mới
+
+**B. Danh sách chi tiết với Product Info Status**
+- **Filter mới**: Theo completeness level (0-25%, 26-50%, 51-75%, 76-100%)
+- **Filter theo field**: Thiếu trường nào (Thương hiệu, Thành phần, etc.)
+- **Sort theo**: Completeness score, thời gian tạo, deadline
+- **Color coding**: 
+  - 🔴 Red: Completeness < 50%
+  - 🟡 Yellow: Completeness 50-80%
+  - 🟢 Green: Completeness > 80%
+
+**Sample List View:**
+| SKU | Tên sản phẩm | Completeness | Missing Fields | Days Since Created | Priority |
+|-----|--------------|--------------|----------------|-------------------|----------|
+| ABC123 | Kem dưỡng ABC | 🔴 40% | Thành phần, Công dụng, HDSD | 3 days | 🔥 High |
+| XYZ456 | Serum XYZ | 🟡 75% | USP, Sản phẩm tương tự | 1 day | ⚠️ Medium |
+| DEF789 | Toner DEF | 🟢 95% | Lý do phát triển | 5 hours | ℹ️ Low |
 
 **C. Báo cáo định kỳ**
 - Weekly Summary Report
