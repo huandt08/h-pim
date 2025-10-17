@@ -5,12 +5,25 @@
 ### 1.1 Mục đích
 Xây dựng hệ thống quản lý thông tin sản phẩm tập trung, cho phép các phòng ban quản lý tài liệu, thông tin sản phẩm và lô hàng một cách có tổ chức và bảo mật.
 
-### 1.2 Phạm vi
-- Quản lý thông tin sản phẩm và lô hàng
-- Quản lý tài liệu đa dạng (văn bản, hình ảnh, video, file)
-- Phân quyền theo phòng ban
-- Quản lý phiên bản tài liệu
+### 1.2 Phạm vi hệ thống
+**HỆ THỐNG QUẢN LÝ THÔNG TIN VÀ TÀI LIỆU - KHÔNG PHẢI HỆ THỐNG QUẢN LÝ KHO**
+
+✅ **Những gì hệ thống QUẢN LÝ:**
+- Thông tin sản phẩm và mô tả chi tiết
+- Tài liệu đa dạng (văn bản, hình ảnh, video, file)  
+- Thông tin kho (tên, địa chỉ, người phụ trách)
+- Thông tin lô hàng (mã lô, ngày sản xuất, hạn sử dụng)
+- Phân quyền truy cập tài liệu theo phòng ban
+- Version control và lịch sử thay đổi tài liệu
 - Giao diện quản trị và người dùng
+
+❌ **Những gì hệ thống KHÔNG QUẢN LÝ:**
+- Số lượng tồn kho thực tế
+- Xuất nhập kho và vận hành kho bãi  
+- Chuyển hàng giữa các kho
+- Kiểm kê và đếm hàng
+- Quản lý vị trí vật lý trong kho
+- Quy trình logistics và vận chuyển
 
 ## 2. QUẢN LÝ PHÒNG BAN
 
@@ -61,29 +74,57 @@ Xây dựng hệ thống quản lý thông tin sản phẩm tập trung, cho ph�
 - Xem lịch sử thay đổi
 - Liên kết với lô hàng và tài liệu
 
-## 4. QUẢN LÝ LÔ HÀNG
+## 4. QUẢN LÝ KHO
 
-### 4.1 Thông tin lô hàng
+### 4.1 Thông tin kho (Chỉ để phân loại tài liệu)
+```
+- Mã kho (duy nhất)
+- Tên kho  
+- Loại kho (Kho chính, Kho phụ, Kho bán lẻ, Kho online)
+- Địa chỉ kho
+- Người phụ trách kho
+- Trạng thái (Hoạt động, Tạm đóng)
+- Ghi chú
+```
+
+### 4.2 Mục đích quản lý kho trong hệ thống PIM
+- **Phân loại tài liệu theo kho**: Tài liệu thuộc kho nào
+- **Phân quyền truy cập**: User chỉ thấy tài liệu kho được phân quyền
+- **Tổ chức thông tin**: Dễ dàng tìm kiếm tài liệu theo kho
+- **Báo cáo**: Thống kê tài liệu theo từng kho
+
+## 5. QUẢN LÝ LÔ HÀNG (Thông tin để quản lý tài liệu)
+
+### 5.1 Thông tin lô hàng
 ```
 - Mã lô hàng (duy nhất)
 - SKU sản phẩm (liên kết)
-- Số lượng
+- Mã kho (để phân loại tài liệu)
 - Ngày sản xuất
 - Hạn sử dụng
 - Nhà cung cấp
 - Số hợp đồng
-- Giá nhập
-- Trạng thái (Đang vận chuyển, Đã nhập kho, Đã xuất kho)
+- Trạng thái (Active, Expired, Discontinued)
 - Ghi chú
+- Ngày tạo record
+- Người tạo
 ```
 
-### 4.2 Chức năng
-- Thêm/sửa lô hàng
-- Liên kết tự động với tài liệu bắt buộc
-- Theo dõi trạng thái lô hàng
-- Báo cáo tồn kho theo lô
+**Lưu ý**: Thông tin lô hàng chỉ phục vụ việc quản lý tài liệu, không quản lý số lượng hay vận hành kho.
 
-## 5. QUẢN LÝ TÀI LIỆU
+### 5.2 Mục đích quản lý lô hàng trong PIM
+- **Liên kết tài liệu với lô hàng cụ thể**: Mỗi lô có tài liệu riêng
+- **Theo dõi tài liệu bắt buộc**: Kiểm tra tài liệu theo lô hàng
+- **Phân loại theo kho**: Tài liệu thuộc lô hàng ở kho nào  
+- **Cảnh báo hết hạn tài liệu**: Khi lô hàng sắp hết hạn
+
+### 5.3 Báo cáo thông tin (Không phải báo cáo nghiệp vụ)
+- **Báo cáo tài liệu theo kho**: Thống kê tài liệu của từng kho
+- **Báo cáo tài liệu theo lô hàng**: Tài liệu thiếu của lô hàng nào  
+- **Cảnh báo tài liệu sắp hết hạn**: Khi lô hàng gần hết hạn
+- **Dashboard tổng quan**: Tình trạng tài liệu theo kho và lô hàng
+
+## 6. QUẢN LÝ TÀI LIỆU
 
 ### 5.1 Cấu trúc phân loại tài liệu
 
@@ -190,7 +231,7 @@ Xây dựng hệ thống quản lý thông tin sản phẩm tập trung, cho ph�
 - **Change notifications** tới tất cả người có quyền truy cập
 - **Deadline reminders** cho tài liệu bắt buộc
 
-## 6. HỆ THỐNG PHÂN QUYỀN
+## 7. HỆ THỐNG PHÂN QUYỀN
 
 ### 6.1 Vai trò và quyền hạn theo mô hình Primary Owner + Secondary Access
 
@@ -239,17 +280,19 @@ Xây dựng hệ thống quản lý thông tin sản phẩm tập trung, cho ph�
 | Cấu hình hệ thống | ✓ | ✗ | ✗ | ✗ | ✗ |
 | Xem dashboard tổng quan | ✓ | ✓ | ✓ | ✓** | ✗ |
 
-#### 6.2.2 Quyền quản lý sản phẩm và lô hàng
+#### 7.2.2 Quyền quản lý thông tin sản phẩm, kho và lô hàng  
 | Chức năng | Super Admin | Primary Owner | Secondary Access | View Only |
 |-----------|-------------|---------------|------------------|-----------|
 | Tạo sản phẩm mới | ✓ | ✓ | ✗ | ✗ |
 | Chỉnh sửa thông tin sản phẩm | ✓ | ✓ | ✓* | ✗ |
 | Xóa sản phẩm | ✓ | ✓** | ✗ | ✗ |
 | Xem thông tin sản phẩm | ✓ | ✓ | ✓ | ✓*** |
-| Tạo lô hàng | ✓ | ✓ | ✗ | ✗ |
-| Cập nhật lô hàng | ✓ | ✓ | ✓* | ✗ |
+| Quản lý thông tin kho | ✓ | ✓**** | ✗ | ✗ |
+| Xem thông tin kho | ✓ | ✓ | ✓ | ✓*** |
+| Tạo thông tin lô hàng | ✓ | ✓ | ✗ | ✗ |
+| Cập nhật thông tin lô hàng | ✓ | ✓ | ✓* | ✗ |
 
-#### 6.2.3 Quyền quản lý tài liệu (theo Primary/Secondary Model)
+#### 7.2.3 Quyền quản lý tài liệu (theo Primary/Secondary Model)
 | Chức năng | Super Admin | Primary Owner | Secondary (R) | Secondary (R+C) | Secondary (R+E) |
 |-----------|-------------|---------------|---------------|----------------|-----------------|
 | Tạo tài liệu mới | ✓ | ✓ | ✗ | ✗ | ✗ |
@@ -265,10 +308,11 @@ Xây dựng hệ thống quản lý thông tin sản phẩm tập trung, cho ph�
 - `*` Nếu có quyền Read+Edit
 - `**` Cần confirm từ Super Admin nếu có tài liệu liên quan
 - `***` Theo danh sách được phân quyền
+- `****` Chỉ kho thuộc phòng ban mình quản lý
 
-## 7. GIAO DIỆN NGƯỜI DÙNG
+## 8. GIAO DIỆN NGƯỜI DÙNG
 
-### 7.1 Giao diện quản trị (Admin Panel)
+### 8.1 Giao diện quản trị (Admin Panel)
 
 #### 7.1.1 Dashboard với Alert Center
 **A. Tổng quan hệ thống**
@@ -281,12 +325,12 @@ Xây dựng hệ thống quản lý thông tin sản phẩm tập trung, cho ph�
 ┌─ ALERT CENTER ────────────────────────────────────┐
 │ 🔴 Critical: 3    ⚠️ Warning: 8    ℹ️ Info: 12      │
 │                                                   │
-│ 📋 Latest Alerts:                                │
-│ • SKU001 - Thiếu hợp đồng mua bán (3 ngày)       │
-│ • SKU025 - Giấy công bố hết hạn hôm nay          │
-│ • SKU038 - Cần cập nhật ảnh sản phẩm             │
+│ 📋 Latest Alerts với phân công rõ ràng:           │
+│ • [PUR] SKU001 - Thiếu hợp đồng mua bán (3 ngày) │
+│ • [RND] SKU025 - Giấy công bố hết hạn hôm nay     │
+│ • [MKT] SKU038 - Cần cập nhật ảnh sản phẩm        │
 │                                                   │
-│ [View All Alerts] [Generate Report] [Settings]    │
+│ [Filter by Department] [Assign Tasks] [Escalate]  │
 └───────────────────────────────────────────────────┘
 ```
 
@@ -300,22 +344,28 @@ Xây dựng hệ thống quản lý thông tin sản phẩm tập trung, cho ph�
 - Export báo cáo
 - Cấu hình rule kiểm tra
 
-#### 7.1.2 Quản lý phòng ban
+#### 8.1.2 Quản lý phòng ban
 - Danh sách phòng ban
 - Thêm/sửa/xóa phòng ban
 - Quản lý nhân viên theo phòng ban
 
-#### 7.1.3 Quản lý sản phẩm
+#### 8.1.3 Quản lý kho (Chỉ thông tin cơ bản)
+- Danh sách kho với thông tin cơ bản
+- Thêm/sửa/xóa thông tin kho  
+- Phân quyền truy cập tài liệu theo kho
+
+#### 8.1.4 Quản lý sản phẩm
 - Danh sách sản phẩm với filter, search
 - Form thêm/sửa sản phẩm
 - Xem chi tiết sản phẩm và tài liệu liên quan
 
-#### 7.1.4 Quản lý lô hàng
-- Danh sách lô hàng với filter theo ngày, trạng thái
-- Form thêm/sửa lô hàng
-- Liên kết với tài liệu bắt buộc
+#### 8.1.5 Quản lý lô hàng (Chỉ thông tin tài liệu)
+- Danh sách lô hàng với filter theo kho, sản phẩm
+- Form thêm/sửa thông tin lô hàng
+- Liên kết với tài liệu bắt buộc theo lô hàng
+- Theo dõi tình trạng tài liệu của lô hàng
 
-#### 7.1.5 Quản lý tài liệu với Cross-Department Access
+#### 8.1.6 Quản lý tài liệu với Cross-Department Access
 **A. Document Tree View**
 ```
 📁 Tài liệu theo phòng ban
@@ -336,7 +386,7 @@ Xây dựng hệ thống quản lý thông tin sản phẩm tập trung, cho ph�
 - **Collaboration panel**: Theo dõi hoạt động cross-department
 - **Version comparison**: So sánh versions với highlight changes
 
-#### 7.1.6 Quản lý phân quyền Cross-Department
+#### 8.1.7 Quản lý phân quyền Cross-Department
 **A. Permission Management Matrix**
 - Thiết lập Primary Owner cho từng loại tài liệu
 - Cấu hình Secondary Access (Read/Comment/Edit) 
@@ -349,27 +399,31 @@ Xây dựng hệ thống quản lý thông tin sản phẩm tập trung, cho ph�
 - Monitor hoạt động cross-department
 - Notification settings
 
-### 7.2 Giao diện người dùng (User Portal)
+### 8.2 Giao diện người dùng (User Portal)
 
-#### 7.2.1 Dashboard người dùng với Task Manager
+#### 8.2.1 Dashboard người dùng với Task Manager
 **A. Tổng quan cá nhân**
 - Tài liệu gần đây đã xem/chỉnh sửa
 - Thống kê hoạt động của bản thân
 - Shortcut đến các chức năng thường dùng
 
-**B. My Tasks đơn giản**
+**B. My Tasks với phân công rõ ràng theo phòng ban**
 ```
-┌─ MY TASKS ────────────────────────────────────────┐
-│ 🔥 Urgent Tasks (3):                              │
-│ • SKU001: Upload hợp đồng mua bán (Quá hạn 2 ngày) │
-│ • SKU002: Cập nhật mô tả sản phẩm (Hôm nay)       │
+┌─ MY TASKS - PHÒNG MUA HÀNG (PUR) ────────────────┐
+│ 🔥 Urgent Tasks - Tôi chịu trách nhiệm (3):       │
+│ • [PUR→WH,LEG] SKU001: Upload hợp đồng mua bán    │
+│   (Quá hạn 2 ngày) - Primary Owner               │
+│ • [PUR] SKU002: Cập nhật đơn đặt hàng (Hôm nay)  │
 │                                                   │
-│ ⏰ This Week (5):                                 │  
-│ • SKU003: Hoàn thiện ảnh sản phẩm                 │
-│ • SKU004: Cập nhật thông tin lô hàng              │
-│ • SKU005: Review tài liệu từ phòng khác           │
+│ ⏰ This Week - Tasks của tôi (5):                 │  
+│ • [PUR] SKU003: Hoàn thiện hóa đơn mua hàng       │
+│ • [PUR] SKU004: Cập nhật thông tin nhà cung cấp   │
 │                                                   │
-│ [Mark Complete] [Edit] [View Details] [Archive]    │
+│ 👁️ Tasks tôi có quyền xem (Secondary Access):      │
+│ • [RND→PUR] SKU005: Review thông tin sản phẩm     │
+│   (RnD chủ quản, PUR có quyền comment)           │
+│                                                   │
+│ [My Department Only] [All Access] [Escalate]      │
 └───────────────────────────────────────────────────┘
 ```
 
@@ -397,17 +451,22 @@ Xây dựng hệ thống quản lý thông tin sản phẩm tập trung, cho ph�
 - **Cross-Department Score**: Collaboration effectiveness
 - **Response Time**: Thời gian phản hồi requests trung bình
 
-#### 7.2.2 Quản lý sản phẩm
+#### 8.2.2 Quản lý sản phẩm
 - Xem danh sách sản phẩm được phân quyền
 - Thêm/sửa thông tin sản phẩm
 - Upload tài liệu sản phẩm
 
-#### 7.2.3 Quản lý lô hàng
-- Xem danh sách lô hàng
-- Cập nhật thông tin lô hàng
-- Upload tài liệu lô hàng
+#### 8.2.3 Quản lý kho (theo phân quyền)
+- Xem thông tin kho được phân quyền
+- Theo dõi tài liệu thuộc kho
 
-#### 7.2.4 Thư viện tài liệu Cross-Department
+#### 8.2.4 Quản lý lô hàng (thông tin tài liệu)
+- Xem danh sách lô hàng theo kho được phân quyền
+- Cập nhật thông tin lô hàng
+- Upload tài liệu cho lô hàng
+- Theo dõi tình trạng tài liệu của lô hàng
+
+#### 8.2.5 Thư viện tài liệu Cross-Department
 **A. Multi-View Document Library**
 ```
 📚 MY DOCUMENT LIBRARY
@@ -436,7 +495,7 @@ Xây dựng hệ thống quản lý thông tin sản phẩm tập trung, cho ph�
 - **Collaborative preview**: Multi-user preview với real-time comments
 - **Smart notifications**: Alerts khi có updates từ documents được follow
 
-## 8. YÊU CẦU KỸ THUẬT
+## 9. YÊU CẦU KỸ THUẬT
 
 ### 8.1 Yêu cầu chức năng
 
@@ -535,43 +594,58 @@ Xây dựng hệ thống quản lý thông tin sản phẩm tập trung, cho ph�
 }
 ```
 
-##### 8.1.3.3 Hệ thống cảnh báo và thông báo
+##### 8.1.3.3 Hệ thống cảnh báo và thông báo theo phòng ban
 
-**A. Cấp độ cảnh báo**
-- **Critical (Đỏ)**: Tài liệu bắt buộc quá hạn
-- **Warning (Vàng)**: Sắp đến hạn cập nhật
-- **Info (Xanh)**: Nhắc nhở cập nhật
+**A. Cấp độ cảnh báo với phân công rõ ràng**
+- **Critical (Đỏ)**: Tài liệu bắt buộc quá hạn → Gửi cho Primary Owner + Department Admin
+- **Warning (Vàng)**: Sắp đến hạn cập nhật → Gửi cho Primary Owner + Secondary Access  
+- **Info (Xanh)**: Nhắc nhở cập nhật → Gửi cho Primary Owner
 
-**B. Kênh thông báo**
+**B. Kênh thông báo với định tuyến theo phòng ban**
 1. **In-app Notification**
-   - Hiển thị trên dashboard
-   - Popup khi đăng nhập
-   - Badge số lượng cảnh báo
+   - Hiển thị trên dashboard theo phòng ban
+   - Badge riêng cho Primary Owner vs Secondary Access
+   - Filter notification theo department
 
-2. **Email Notification**
-   - Gửi cho người phụ trách
-   - CC cho Department Admin
-   - Escalation cho cấp trên
+2. **Email Notification - Smart Routing**
+   - **Primary Owner**: Nhận tất cả alerts liên quan đến tài liệu phòng ban chủ quản
+   - **Secondary Access**: Chỉ nhận alerts của tài liệu có quyền truy cập
+   - **Department Admin**: Nhận summary alerts của toàn phòng ban
+   - **Cross-Department**: Nhận alerts khi có impact đến phòng ban khác
 
 3. **SMS (Optional)**
-   - Cho cảnh báo Critical
-   - Chỉ gửi trong giờ hành chính
+   - Chỉ gửi cho Primary Owner khi Critical
+   - Bao gồm mã phòng ban trong tin nhắn: "[PUR-CRITICAL] SKU001..."
+
+4. **Lark Bot Notification**
+   - Group chat riêng cho từng phòng ban
+   - @mention specific người phụ trách
+   - Thread discussion cho mỗi alert
 
 **C. Template thông báo**
 
 *Ví dụ Email Template:*
 ```
-Subject: [PIM] Cảnh báo tài liệu - SKU: ABC123
+Subject: [PIM-PUR] Cảnh báo tài liệu cần xử lý - SKU: ABC123
 
-Xin chào [Tên người dùng],
+Xin chào [Tên người dùng] - Phòng Mua hàng,
 
-Hệ thống PIM phát hiện các vấn đề sau cần được xử lý:
+Hệ thống PIM phát hiện các vấn đề sau thuộc trách nhiệm của phòng ban bạn:
 
-CRITICAL:
+🔴 CRITICAL - PHÒNG MUA HÀNG (PUR) CHỊU TRÁCH NHIỆM:
 - Sản phẩm ABC123: Thiếu "Hợp đồng mua bán" cho lô hàng LH001 (Quá hạn 2 ngày)
+  → Người phụ trách: Nguyễn Văn A (PUR)
+  → Hạn chót đã qua: 15/10/2025
 
-WARNING: 
+⚠️ WARNING - PHÒNG NGHIÊN CỨU & PHÁT TRIỂN (RND) CHỊU TRÁCH NHIỆM:
 - Sản phẩm ABC123: "Giấy công bố" sẽ hết hạn sau 7 ngày (25/10/2025)
+  → Người phụ trách: Trần Thị B (RND)
+  → Phòng liên quan: Legal (LEG) cần được thông báo
+
+📧 Thông báo đã được gửi đến:
+- Chủ quản (Primary Owner): Phòng Mua hàng
+- Có quyền truy cập (Secondary): Phòng Kho, Phòng Pháp chế
+- Department Admin: [Tên Admin]
 
 Vui lòng truy cập hệ thống để cập nhật: [Link]
 
@@ -831,11 +905,11 @@ def push_to_lark_base(table_name, data):
 └─────────────────────────────────────┘
 
 🔴 CRITICAL (Cần xử lý ngay):
-- SKU001: Thiếu hợp đồng mua bán (Quá hạn 3 ngày)
-- SKU002: Giấy công bố hết hạn hôm nay
+- SKU001: [PUR] Thiếu hợp đồng mua bán (Quá hạn 3 ngày) - Phòng Mua hàng
+- SKU002: [RND] Giấy công bố hết hạn hôm nay - Phòng Nghiên cứu & Phát triển
 
 ⚠️ WARNING (Sắp đến hạn):
-- SKU003: Giấy phép quảng cáo hết hạn sau 7 ngày
+- SKU003: [RND→MKT] Giấy phép quảng cáo hết hạn sau 7 ngày - RnD chủ quản, MKT cần biết
 ```
 
 #### 9.1.2 Báo cáo tuần (Weekly Report)
@@ -964,13 +1038,24 @@ RnD        |    22    |    89%     |    2     |  →     | Follow-up
 Purchasing |    30    |    78%     |    5     |  ↘️    | Urgent
 ```
 
-**B. "Alert Monitor" View**  
+**B. "Alert Monitor" View với phân công rõ ràng**  
 ```
-Priority | SKU   | Document Missing    | Days Overdue | Owner    | Status
----------|-------|-------------------|--------------|----------|--------
-🔴 High   | P001  | Hợp đồng mua bán   |      3       | Minh.NT  | In Progress
-🔴 High   | P025  | Giấy công bố       |      1       | Linh.VT  | Pending
-⚠️ Medium | P038  | Ảnh sản phẩm       |      0       | Duc.LM   | New
+Priority | SKU   | Document Missing     | Responsible Dept | Owner      | Secondary Access | Days Overdue | Status
+---------|-------|---------------------|------------------|------------|------------------|--------------|--------
+🔴 High   | P001  | Hợp đồng mua bán    | PUR (Primary)    | Minh.NT    | WH, LEG          |      3       | In Progress
+🔴 High   | P025  | Giấy công bố        | RND (Primary)    | Linh.VT    | LEG              |      1       | Pending  
+⚠️ Medium | P038  | Ảnh sản phẩm        | MKT (Primary)    | Duc.LM     | ECOM, COM        |      0       | New
+⚠️ Medium | P040  | Content ECOM        | ECOM (Primary)   | Mai.HT     | MKT              |      2       | Assigned
+```
+
+**C. "Department Responsibility" View**
+```
+Department | Primary Owner Tasks | Secondary Access Tasks | Overdue | This Week | Total Workload
+-----------|-------------------|------------------------|---------|-----------|---------------
+PUR        |         8         |          3             |    2    |     6     |      High
+RND        |        12         |          5             |    1    |     8     |     Medium  
+MKT        |         6         |          8             |    0    |     4     |      Low
+ECOM       |         4         |          6             |    1    |     3     |      Low
 ```
 
 #### 9.4.5 Integration Benefits
@@ -1022,12 +1107,18 @@ Priority | SKU   | Document Missing    | Days Overdue | Owner    | Status
 
 ## 11. KẾT LUẬN
 
-Hệ thống PIM này sẽ cung cấp một giải pháp toàn diện cho việc quản lý thông tin sản phẩm và tài liệu, đảm bảo:
+Hệ thống PIM này cung cấp giải pháp **quản lý thông tin và tài liệu sản phẩm tập trung**, không phải hệ thống quản lý kho, đảm bảo:
 
-- **Tổ chức**: Cấu trúc rõ ràng theo phòng ban và loại tài liệu
-- **Bảo mật**: Phân quyền chặt chẽ theo phòng ban
-- **Truy xuất**: Version control và lịch sử thay đổi
-- **Hiệu quả**: Giao diện thân thiện, tìm kiếm mạnh mẽ
-- **Mở rộng**: Architecture linh hoạt cho tương lai
+- **Tổ chức thông tin**: Cấu trúc rõ ràng theo phòng ban, kho và loại tài liệu
+- **Quản lý tài liệu hiệu quả**: Version control, lịch sử thay đổi, phân quyền chặt chẽ
+- **Theo dõi tuân thủ**: Kiểm tra tự động tài liệu bắt buộc, cảnh báo hết hạn
+- **Phân quyền linh hoạt**: Primary Owner + Secondary Access model
+- **Tích hợp Lark Base**: Báo cáo và dashboard real-time cho leadership
+- **Giao diện thân thiện**: Admin panel và user portal trực quan
 
-Hệ thống này sẽ giúp doanh nghiệp quản lý thông tin sản phẩm một cách chuyên nghiệp và hiệu quả.
+**Phạm vi rõ ràng:**
+- ✅ Quản lý **THÔNG TIN** sản phẩm, kho, lô hàng
+- ✅ Quản lý **TÀI LIỆU** và version control  
+- ❌ Không quản lý số lượng, xuất nhập kho, vận hành
+
+Hệ thống này giúp doanh nghiệp quản lý thông tin sản phẩm một cách **chuyên nghiệp, có tổ chức và tuân thủ quy định**.
