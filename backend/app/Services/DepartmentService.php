@@ -15,7 +15,22 @@ class DepartmentService
      */
     public function getAllDepartments(): Collection
     {
-        return Department::all();
+        return Department::withCount([
+            'users as users_count' => function($query) {
+                $query->where('is_active', true);
+            },
+            'primaryProducts as products_count',
+            'primaryDocuments as documents_count'
+        ])
+        ->with(['users' => function($query) {
+            $query->where('is_active', true)->limit(1);
+        }])
+        ->get()
+        ->map(function($department) {
+            // Calculate efficiency score based on various metrics
+            $department->efficiency_score = $this->calculateEfficiencyScore($department);
+            return $department;
+        });
     }
 
     /**
@@ -74,6 +89,9 @@ class DepartmentService
 
         $avgResponseTime = $this->calculateAverageResponseTime($resolvedAlerts);
 
+        // Users count
+        $totalUsers = $department->users()->where('is_active', true)->count();
+
         return [
             'department' => $departmentCode,
             'department_name' => $department->name,
@@ -104,6 +122,9 @@ class DepartmentService
             
             // Performance
             'avg_response_time_hours' => $avgResponseTime,
+            
+            // Users
+            'total_users' => $totalUsers,
             
             // Calculated at
             'calculated_at' => now()->toISOString()
@@ -181,34 +202,88 @@ class DepartmentService
      */
     public function getDepartmentCollaboration(): array
     {
-        $departments = Department::getAllCodes();
-        $collaborationMatrix = [];
+        $departments = Department::with('users')->get();
+        $departmentCodes = $departments->pluck('code')->toArray();
+        $matrixData = [];
+        $departmentStats = [];
 
-        foreach ($departments as $primaryDept) {
-            $collaborationMatrix[$primaryDept] = [];
-            
-            foreach ($departments as $secondaryDept) {
+        // Initialize department statistics
+        foreach ($departments as $dept) {
+            $departmentStats[$dept->code] = [
+                'code' => $dept->code,
+                'name' => $dept->name,
+                'total_collaborations' => 0,
+                'collaboration_score' => 0
+            ];
+        }
+
+        // Calculate collaboration matrix
+        foreach ($departmentCodes as $primaryDept) {
+            foreach ($departmentCodes as $secondaryDept) {
                 if ($primaryDept !== $secondaryDept) {
-                    // Count products where primary dept owns and secondary has access
+                    // Count shared products
                     $sharedProducts = Product::where('primary_owner_department', $primaryDept)
                         ->whereJsonContains('secondary_access_departments', $secondaryDept)
                         ->count();
                     
-                    // Count documents where primary dept owns and secondary has access
+                    // Count shared documents
                     $sharedDocuments = Document::where('primary_owner_department', $primaryDept)
                         ->whereJsonContains('secondary_access_departments', $secondaryDept)
                         ->count();
                     
-                    $collaborationMatrix[$primaryDept][$secondaryDept] = [
-                        'shared_products' => $sharedProducts,
-                        'shared_documents' => $sharedDocuments,
-                        'collaboration_score' => $sharedProducts + $sharedDocuments
-                    ];
+                    $collaborationScore = ($sharedProducts * 2) + $sharedDocuments; // Products weigh more
+                    
+                    if ($collaborationScore > 0) {
+                        $matrixData[] = [
+                            'department_from' => $primaryDept,
+                            'department_to' => $secondaryDept,
+                            'shared_products' => $sharedProducts,
+                            'shared_documents' => $sharedDocuments,
+                            'collaboration_score' => $collaborationScore,
+                            'collaboration_level' => $this->getCollaborationLevel($collaborationScore)
+                        ];
+
+                        // Update department stats
+                        $departmentStats[$primaryDept]['total_collaborations']++;
+                        $departmentStats[$primaryDept]['collaboration_score'] += $collaborationScore;
+                    }
                 }
             }
         }
 
-        return $collaborationMatrix;
+        // Calculate summary statistics
+        $totalCollaborations = count($matrixData);
+        $averageScore = $totalCollaborations > 0 
+            ? round(collect($matrixData)->avg('collaboration_score'), 2) 
+            : 0;
+
+        // Find most and least collaborative departments
+        $sortedDepts = collect($departmentStats)->sortByDesc('collaboration_score');
+        $mostCollaborative = $sortedDepts->first();
+        $leastCollaborative = $sortedDepts->last();
+
+        return [
+            'matrix' => $matrixData,
+            'summary' => [
+                'total_collaborations' => $totalCollaborations,
+                'average_collaboration_score' => $averageScore,
+                'most_collaborative_dept' => $mostCollaborative['name'] ?? 'N/A',
+                'least_collaborative_dept' => $leastCollaborative['name'] ?? 'N/A',
+            ],
+            'departments' => array_values($departmentStats)
+        ];
+    }
+
+    /**
+     * Get collaboration level based on score
+     */
+    private function getCollaborationLevel(int $score): string
+    {
+        if ($score >= 20) return 'excellent';
+        if ($score >= 15) return 'good';
+        if ($score >= 10) return 'fair';
+        if ($score >= 5) return 'poor';
+        return 'minimal';
     }
 
     /**
@@ -303,5 +378,324 @@ class DepartmentService
             'recent_alerts' => $recentAlerts,
             'upcoming_deadlines' => $upcomingDeadlines
         ];
+    }
+
+    /**
+     * Get all departments statistics - aggregate data
+     */
+    public function getAllDepartmentStats(): array
+    {
+        $departments = $this->getAllDepartments();
+        $departmentStats = [];
+        $totalStats = [
+            'total_departments' => $departments->count(),
+            'total_products' => 0,
+            'total_documents' => 0,
+            'total_alerts' => 0,
+            'total_users' => 0,
+            'average_compliance' => 0,
+            'critical_alerts' => 0,
+            'overdue_alerts' => 0
+        ];
+
+        foreach ($departments as $department) {
+            $metrics = $this->calculateDepartmentMetricsWithRoles($department->code);
+            
+            if (isset($metrics['error'])) {
+                continue; // Skip departments with errors
+            }
+
+            $workload = $this->getDepartmentWorkload($department->code);
+            
+            if (isset($workload['error'])) {
+                continue; // Skip departments with workload errors
+            }
+
+            $departmentData = [
+                'code' => $department->code,
+                'name' => $department->name,
+                'metrics' => $metrics,
+                'workload' => $workload,
+                'performance_level' => $this->getPerformanceLevel($metrics),
+                'compliance_status' => $this->getComplianceStatus($metrics['overall_compliance_score']),
+                'alert_status' => $this->getAlertStatus($metrics['critical_alerts'], $metrics['overdue_alerts'])
+            ];
+
+            $departmentStats[] = $departmentData;
+
+            // Aggregate totals
+            $totalStats['total_products'] += $metrics['primary_owner_products'] ?? 0;
+            $totalStats['total_documents'] += $metrics['primary_owner_documents'] ?? 0;
+            $totalStats['total_alerts'] += $metrics['total_alerts'] ?? 0;
+            $totalStats['total_users'] += $metrics['total_users'] ?? 0;
+            $totalStats['average_compliance'] += $metrics['overall_compliance_score'] ?? 0;
+            $totalStats['critical_alerts'] += $metrics['critical_alerts'] ?? 0;
+            $totalStats['overdue_alerts'] += $metrics['overdue_alerts'] ?? 0;
+        }
+
+        // Calculate averages
+        if ($departments->count() > 0) {
+            $totalStats['average_compliance'] = round($totalStats['average_compliance'] / $departments->count(), 2);
+        }
+
+        // Sort departments by performance
+        usort($departmentStats, function($a, $b) {
+            $scoreA = $a['metrics']['overall_compliance_score'];
+            $scoreB = $b['metrics']['overall_compliance_score'];
+            return $scoreB <=> $scoreA; // Descending order
+        });
+
+        return [
+            'departments' => $departmentStats,
+            'totals' => $totalStats,
+            'performance_summary' => $this->getPerformanceSummary($departmentStats),
+            'compliance_distribution' => $this->getComplianceDistribution($departmentStats)
+        ];
+    }
+
+    /**
+     * Get performance level based on metrics
+     */
+    private function getPerformanceLevel(array $metrics): string
+    {
+        $compliance = $metrics['overall_compliance_score'];
+        $criticalAlerts = $metrics['critical_alerts'];
+        $overdueAlerts = $metrics['overdue_alerts'];
+
+        if ($compliance >= 95 && $criticalAlerts === 0 && $overdueAlerts === 0) {
+            return 'Excellent';
+        } elseif ($compliance >= 85 && $criticalAlerts <= 1 && $overdueAlerts <= 2) {
+            return 'Good';
+        } elseif ($compliance >= 70 && $criticalAlerts <= 3 && $overdueAlerts <= 5) {
+            return 'Average';
+        } elseif ($compliance >= 50) {
+            return 'Below Average';
+        } else {
+            return 'Poor';
+        }
+    }
+
+    /**
+     * Get compliance status
+     */
+    private function getComplianceStatus(float $compliance): string
+    {
+        if ($compliance >= 95) return 'Excellent';
+        if ($compliance >= 85) return 'Good';
+        if ($compliance >= 70) return 'Fair';
+        if ($compliance >= 50) return 'Poor';
+        return 'Critical';
+    }
+
+    /**
+     * Get alert status
+     */
+    private function getAlertStatus(int $critical, int $overdue): string
+    {
+        if ($critical === 0 && $overdue === 0) return 'Good';
+        if ($critical <= 1 && $overdue <= 2) return 'Attention';
+        if ($critical <= 3 && $overdue <= 5) return 'Warning';
+        return 'Critical';
+    }
+
+    /**
+     * Get performance summary
+     */
+    private function getPerformanceSummary(array $departmentStats): array
+    {
+        $summary = [
+            'excellent' => 0,
+            'good' => 0,
+            'average' => 0,
+            'below_average' => 0,
+            'poor' => 0
+        ];
+
+        foreach ($departmentStats as $dept) {
+            $level = strtolower(str_replace(' ', '_', $dept['performance_level']));
+            if (isset($summary[$level])) {
+                $summary[$level]++;
+            }
+        }
+
+        return $summary;
+    }
+
+    /**
+     * Get compliance distribution
+     */
+    private function getComplianceDistribution(array $departmentStats): array
+    {
+        $distribution = [
+            'excellent' => 0, // >= 95%
+            'good' => 0,      // >= 85%
+            'fair' => 0,      // >= 70%
+            'poor' => 0,      // >= 50%
+            'critical' => 0   // < 50%
+        ];
+
+        foreach ($departmentStats as $dept) {
+            $compliance = $dept['metrics']['overall_compliance_score'];
+            
+            if ($compliance >= 95) {
+                $distribution['excellent']++;
+            } elseif ($compliance >= 85) {
+                $distribution['good']++;
+            } elseif ($compliance >= 70) {
+                $distribution['fair']++;
+            } elseif ($compliance >= 50) {
+                $distribution['poor']++;
+            } else {
+                $distribution['critical']++;
+            }
+        }
+
+        return $distribution;
+    }
+
+    /**
+     * Calculate efficiency score for a department
+     */
+    private function calculateEfficiencyScore($department): float
+    {
+        // Base score
+        $score = 70;
+        
+        // Bonus for having users
+        if ($department->users_count > 0) {
+            $score += 10;
+        }
+        
+        // Bonus for products
+        if ($department->products_count > 0) {
+            $score += min(20, $department->products_count * 2);
+        }
+        
+        // Bonus for documents
+        if ($department->documents_count > 0) {
+            $score += min(10, $department->documents_count);
+        }
+        
+        // Cap at 100
+        return min(100, $score);
+    }
+
+    /**
+     * Get workload analysis for all departments
+     */
+    public function getWorkloadAnalysis(): array
+    {
+        $departments = $this->getAllDepartments();
+        $workloadData = [];
+        $totalWorkload = 0;
+        $totalDepartments = $departments->count();
+
+        foreach ($departments as $department) {
+            $workload = $this->getDepartmentWorkload($department->code);
+            
+            if (!isset($workload['error'])) {
+                $workloadInfo = [
+                    'department' => $department->code,
+                    'department_name' => $department->name,
+                    'workload_score' => $workload['workload_score'],
+                    'workload_level' => $workload['workload_level'],
+                    'workload_factors' => $workload['workload_factors'],
+                    'recommendations' => $workload['recommendations'],
+                    'users_count' => $department->users_count ?? 0,
+                    'workload_per_user' => ($department->users_count ?? 0) > 0 
+                        ? round($workload['workload_score'] / $department->users_count, 2) 
+                        : 0
+                ];
+                
+                $workloadData[] = $workloadInfo;
+                $totalWorkload += $workload['workload_score'];
+            }
+        }
+
+        // Sort by workload score descending
+        usort($workloadData, function($a, $b) {
+            return $b['workload_score'] <=> $a['workload_score'];
+        });
+
+        // Calculate statistics
+        $averageWorkload = $totalDepartments > 0 ? round($totalWorkload / $totalDepartments, 2) : 0;
+        
+        $workloadDistribution = [
+            'very_high' => 0, // >= 80
+            'high' => 0,      // >= 60
+            'medium' => 0,    // >= 40
+            'low' => 0,       // >= 20
+            'very_low' => 0   // < 20
+        ];
+
+        foreach ($workloadData as $dept) {
+            $score = $dept['workload_score'];
+            if ($score >= 80) $workloadDistribution['very_high']++;
+            elseif ($score >= 60) $workloadDistribution['high']++;
+            elseif ($score >= 40) $workloadDistribution['medium']++;
+            elseif ($score >= 20) $workloadDistribution['low']++;
+            else $workloadDistribution['very_low']++;
+        }
+
+        // Find most overloaded and underloaded departments
+        $mostOverloaded = count($workloadData) > 0 ? $workloadData[0] : null;
+        $leastLoaded = count($workloadData) > 0 ? end($workloadData) : null;
+
+        return [
+            'departments' => $workloadData,
+            'summary' => [
+                'total_departments' => $totalDepartments,
+                'average_workload' => $averageWorkload,
+                'total_workload' => $totalWorkload,
+                'workload_distribution' => $workloadDistribution
+            ],
+            'insights' => [
+                'most_overloaded' => $mostOverloaded,
+                'least_loaded' => $leastLoaded,
+                'balance_recommendations' => $this->getWorkloadBalanceRecommendations($workloadData)
+            ]
+        ];
+    }
+
+    /**
+     * Get workload balance recommendations
+     */
+    private function getWorkloadBalanceRecommendations(array $workloadData): array
+    {
+        $recommendations = [];
+        
+        $overloaded = array_filter($workloadData, fn($dept) => $dept['workload_score'] >= 70);
+        $underloaded = array_filter($workloadData, fn($dept) => $dept['workload_score'] <= 30);
+        
+        if (count($overloaded) > 0 && count($underloaded) > 0) {
+            $recommendations[] = [
+                'type' => 'redistribution',
+                'message' => 'Consider redistributing workload from overloaded to underloaded departments',
+                'overloaded_depts' => array_column($overloaded, 'department_name'),
+                'underloaded_depts' => array_column($underloaded, 'department_name')
+            ];
+        }
+        
+        foreach ($workloadData as $dept) {
+            if ($dept['workload_score'] >= 80) {
+                $recommendations[] = [
+                    'type' => 'urgent_attention',
+                    'message' => "Department {$dept['department_name']} needs urgent attention due to very high workload",
+                    'department' => $dept['department_name'],
+                    'workload_score' => $dept['workload_score']
+                ];
+            }
+            
+            if ($dept['workload_per_user'] >= 50 && $dept['users_count'] > 0) {
+                $recommendations[] = [
+                    'type' => 'resource_addition',
+                    'message' => "Consider adding more resources to {$dept['department_name']}",
+                    'department' => $dept['department_name'],
+                    'workload_per_user' => $dept['workload_per_user']
+                ];
+            }
+        }
+        
+        return $recommendations;
     }
 }

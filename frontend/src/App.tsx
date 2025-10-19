@@ -29,6 +29,9 @@ import UserForm from './pages/Users/UserForm';
 import Departments from './pages/Departments/Departments';
 import DepartmentDetail from './pages/Departments/DepartmentDetail';
 import DepartmentForm from './pages/Departments/DepartmentForm';
+import DepartmentStatistics from './components/DepartmentStatistics';
+import CollaborationMatrix from './components/CollaborationMatrix';
+import WorkloadAnalysis from './components/WorkloadAnalysis';
 // import Alerts from './pages/Alerts/Alerts';
 // import AlertDetail from './pages/Alerts/AlertDetail';
 // import Profile from './pages/Profile/Profile';
@@ -108,6 +111,9 @@ const App: React.FC = () => {
                 
                 {/* Departments */}
                 <Route path="departments" element={<Departments />} />
+                <Route path="departments/statistics" element={<DepartmentStatistics />} />
+                <Route path="departments/collaboration-matrix" element={<CollaborationMatrix />} />
+                <Route path="departments/workload-analysis" element={<WorkloadAnalysis />} />
                 <Route path="departments/new" element={<DepartmentForm />} />
                 <Route path="departments/:code" element={<DepartmentDetail />} />
                 <Route path="departments/:code/edit" element={<DepartmentForm />} />

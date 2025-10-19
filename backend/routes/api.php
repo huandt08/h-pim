@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\DepartmentController;
 use App\Http\Controllers\Api\AlertController;
 use App\Http\Controllers\Api\FileController;
 use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\BatchController;
 
 /*
 |--------------------------------------------------------------------------
@@ -106,6 +107,9 @@ Route::middleware('auth:sanctum')->group(function () {
     });
     
     // Department routes
+    Route::get('departments/all-stats', [DepartmentController::class, 'getAllDepartmentStats']);
+    Route::get('departments/collaboration-matrix', [DepartmentController::class, 'collaborationMatrix']);
+    Route::get('departments/workload-analysis', [DepartmentController::class, 'workloadAnalysis']);
     Route::apiResource('departments', DepartmentController::class);
     Route::get('departments/{department}/metrics', [DepartmentController::class, 'metrics']);
     Route::get('departments/{department}/workload', [DepartmentController::class, 'workload']);
@@ -123,11 +127,28 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('documents/{document}/versions', [DocumentController::class, 'versions']);
     Route::post('documents/{document}/upload-version', [DocumentController::class, 'uploadVersion']);
     
+    // Batch routes
+    Route::apiResource('batches', BatchController::class);
+    Route::get('batches-statistics', [BatchController::class, 'statistics']);
+    Route::get('batches-expiring', [BatchController::class, 'expiring']);
+    Route::get('batches-expired', [BatchController::class, 'expired']);
+    Route::get('batches-trends', [BatchController::class, 'trends']);
+    Route::get('batches-by-supplier', [BatchController::class, 'bySupplier']);
+    Route::get('batches/{batch}/qr-code', [BatchController::class, 'generateQRCode']);
+    Route::get('batches/{batch}/compliance', [BatchController::class, 'checkCompliance']);
+    Route::post('batches/{batch}/status', [BatchController::class, 'updateStatus']);
+    Route::get('products/{product}/batches', [BatchController::class, 'byProduct']);
+    
     // Alert routes
+    Route::get('alerts/dashboard', [AlertController::class, 'dashboard']);
+    Route::get('alerts/statistics', [AlertController::class, 'stats']);
+    Route::get('alerts/critical', [AlertController::class, 'critical']);
+    Route::get('alerts/overdue', [AlertController::class, 'overdue']);
+    Route::get('alerts/search', [AlertController::class, 'search']);
     Route::apiResource('alerts', AlertController::class);
-    Route::post('alerts/{alert}/acknowledge', [AlertController::class, 'acknowledge']);
     Route::post('alerts/{alert}/resolve', [AlertController::class, 'resolve']);
     Route::post('alerts/{alert}/escalate', [AlertController::class, 'escalate']);
+    Route::patch('alerts/{alert}/status', [AlertController::class, 'updateStatus']);
     
     // File routes
     Route::post('files/upload', [FileController::class, 'upload']);

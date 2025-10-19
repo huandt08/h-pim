@@ -18,13 +18,25 @@ class Department extends Model
         'description',
         'manager_email',
         'secondary_emails',
-        'settings'
+        'settings',
+        'is_active'
     ];
 
     protected $casts = [
         'secondary_emails' => 'array',
-        'settings' => 'array'
+        'settings' => 'array',
+        'is_active' => 'boolean'
     ];
+
+    protected $appends = ['status'];
+
+    /**
+     * Get status attribute based on is_active
+     */
+    public function getStatusAttribute(): string
+    {
+        return $this->is_active ? 'active' : 'inactive';
+    }
 
     /**
      * Get activity log options
@@ -42,7 +54,7 @@ class Department extends Model
      */
     public function users(): HasMany
     {
-        return $this->hasMany(User::class, 'department_code', 'code');
+        return $this->hasMany(User::class, 'department', 'code');
     }
 
     /**

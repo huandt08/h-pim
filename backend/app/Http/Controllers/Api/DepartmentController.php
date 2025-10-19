@@ -15,6 +15,55 @@ class DepartmentController extends Controller
     ) {}
 
     /**
+     * Get all departments statistics - aggregate data
+     */
+    public function getAllDepartmentStats(): JsonResponse
+    {
+        $allStats = $this->departmentService->getAllDepartmentStats();
+
+        return response()->json([
+            'success' => true,
+            'data' => $allStats,
+            'meta' => [
+                'total_departments' => count($allStats['departments'] ?? []),
+                'generated_at' => now()->toISOString()
+            ]
+        ]);
+    }
+
+    /**
+     * Get collaboration matrix between departments
+     */
+    public function collaborationMatrix(): JsonResponse
+    {
+        $collaborationData = $this->departmentService->getDepartmentCollaboration();
+
+        return response()->json([
+            'success' => true,
+            'data' => $collaborationData,
+            'meta' => [
+                'generated_at' => now()->toISOString()
+            ]
+        ]);
+    }
+
+    /**
+     * Get workload analysis for all departments
+     */
+    public function workloadAnalysis(): JsonResponse
+    {
+        $workloadData = $this->departmentService->getWorkloadAnalysis();
+
+        return response()->json([
+            'success' => true,
+            'data' => $workloadData,
+            'meta' => [
+                'generated_at' => now()->toISOString()
+            ]
+        ]);
+    }
+
+    /**
      * Get all departments
      */
     public function index(): JsonResponse
@@ -376,10 +425,10 @@ class DepartmentController extends Controller
             'metrics' => $metrics,
             'workload' => $workload,
             'summary' => [
-                'performance_level' => $this->getPerformanceLevel($metrics),
+                'performance_level' => $metrics['overall_compliance_score'] >= 85 ? 'Good' : 'Average',
                 'workload_level' => $workload['workload_level'],
-                'compliance_status' => $this->getComplianceStatus($metrics['overall_compliance_score']),
-                'alert_status' => $this->getAlertStatus($metrics['critical_alerts'], $metrics['overdue_alerts'])
+                'compliance_status' => $metrics['overall_compliance_score'] >= 85 ? 'Good' : 'Fair',
+                'alert_status' => ($metrics['critical_alerts'] + $metrics['overdue_alerts']) === 0 ? 'Good' : 'Warning'
             ]
         ];
 
@@ -387,50 +436,5 @@ class DepartmentController extends Controller
             'success' => true,
             'data' => $overview
         ]);
-    }
-
-    /**
-     * Get performance level based on metrics
-     */
-    private function getPerformanceLevel(array $metrics): string
-    {
-        $compliance = $metrics['overall_compliance_score'];
-        $criticalAlerts = $metrics['critical_alerts'];
-        $overdueAlerts = $metrics['overdue_alerts'];
-
-        if ($compliance >= 95 && $criticalAlerts === 0 && $overdueAlerts === 0) {
-            return 'Excellent';
-        } elseif ($compliance >= 85 && $criticalAlerts <= 1 && $overdueAlerts <= 2) {
-            return 'Good';
-        } elseif ($compliance >= 70 && $criticalAlerts <= 3 && $overdueAlerts <= 5) {
-            return 'Average';
-        } elseif ($compliance >= 50) {
-            return 'Below Average';
-        } else {
-            return 'Poor';
-        }
-    }
-
-    /**
-     * Get compliance status
-     */
-    private function getComplianceStatus(float $compliance): string
-    {
-        if ($compliance >= 95) return 'Excellent';
-        if ($compliance >= 85) return 'Good';
-        if ($compliance >= 70) return 'Fair';
-        if ($compliance >= 50) return 'Poor';
-        return 'Critical';
-    }
-
-    /**
-     * Get alert status
-     */
-    private function getAlertStatus(int $critical, int $overdue): string
-    {
-        if ($critical === 0 && $overdue === 0) return 'Good';
-        if ($critical <= 1 && $overdue <= 2) return 'Attention';
-        if ($critical <= 3 && $overdue <= 5) return 'Warning';
-        return 'Critical';
     }
 }

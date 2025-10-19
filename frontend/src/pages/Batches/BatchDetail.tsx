@@ -83,15 +83,15 @@ const BatchDetail: React.FC = () => {
 
   // Permission checks
   const canEditBatch = (): boolean => {
-    if (!batch || !currentUser) return false;
+    if (!batch || !currentUser || !currentUser.department) return false;
     return (
       batch.primary_owner_department === currentUser.department ||
-      batch.secondary_access_departments?.includes(currentUser.department)
+      (batch.secondary_access_departments?.includes(currentUser.department) || false)
     );
   };
 
   const canDeleteBatch = (): boolean => {
-    if (!batch || !currentUser) return false;
+    if (!batch || !currentUser || !currentUser.department) return false;
     return batch.primary_owner_department === currentUser.department;
   };
 
@@ -332,6 +332,8 @@ const BatchDetail: React.FC = () => {
       dataIndex: 'result',
       key: 'result',
       render: (result: string) => {
+        if (!result) return <Tag color="default">Unknown</Tag>;
+        
         const colors = {
           passed: 'success',
           failed: 'error',
@@ -371,26 +373,34 @@ const BatchDetail: React.FC = () => {
     );
   }
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status?: string) => {
+    if (!status) return 'default';
+    
     const colors = {
       planning: 'blue',
       in_production: 'processing',
       quality_control: 'warning',
       approved: 'success',
       released: 'green',
-      recalled: 'error'
+      recalled: 'error',
+      incoming: 'blue',
+      stored: 'green',
+      shipped: 'orange',
+      expired: 'red'
     };
-    return colors[status as keyof typeof colors];
+    return colors[status as keyof typeof colors] || 'default';
   };
 
-  const getQualityStatusColor = (status: string) => {
+  const getQualityStatusColor = (status?: string) => {
+    if (!status) return 'default';
+    
     const colors = {
       pending: 'default',
       passed: 'success',
       failed: 'error',
       conditional: 'warning'
     };
-    return colors[status as keyof typeof colors];
+    return colors[status as keyof typeof colors] || 'default';
   };
 
   // Check if batch is expiring soon
@@ -420,10 +430,10 @@ const BatchDetail: React.FC = () => {
                 </Space>
               </Title>
               <Tag color={getStatusColor(batch.status)}>
-                {batch.status.replace('_', ' ').toUpperCase()}
+                {batch.status ? batch.status.replace('_', ' ').toUpperCase() : 'Unknown'}
               </Tag>
               <Tag color={getQualityStatusColor(batch.quality_status)}>
-                {batch.quality_status.toUpperCase()}
+                {batch.quality_status ? batch.quality_status.toUpperCase() : 'Unknown'}
               </Tag>
             </Space>
           </Col>
@@ -623,12 +633,12 @@ const BatchDetail: React.FC = () => {
                     </Descriptions.Item>
                     <Descriptions.Item label="Status">
                       <Tag color={getStatusColor(batch.status)}>
-                        {batch.status.replace('_', ' ').toUpperCase()}
+                        {batch.status ? batch.status.replace('_', ' ').toUpperCase() : 'Unknown'}
                       </Tag>
                     </Descriptions.Item>
                     <Descriptions.Item label="Quality Status">
                       <Tag color={getQualityStatusColor(batch.quality_status)}>
-                        {batch.quality_status.toUpperCase()}
+                        {batch.quality_status ? batch.quality_status.toUpperCase() : 'Unknown'}
                       </Tag>
                     </Descriptions.Item>
                   </Descriptions>

@@ -121,15 +121,15 @@ const DocumentDetail: React.FC = () => {
 
   // Permission checks
   const canEdit = (): boolean => {
-    if (!currentUser || !document) return false;
+    if (!currentUser || !document || !currentUser.department) return false;
     return (
       document.primary_owner_department === currentUser.department ||
-      document.secondary_access_departments?.includes(currentUser.department)
+      (document.secondary_access_departments?.includes(currentUser.department) || false)
     );
   };
 
   const canDelete = (): boolean => {
-    if (!currentUser || !document) return false;
+    if (!currentUser || !document || !currentUser.department) return false;
     return document.primary_owner_department === currentUser.department;
   };
 
@@ -240,7 +240,7 @@ const DocumentDetail: React.FC = () => {
               {document.title}
             </Title>
             <Tag color={statusColors[document.status as keyof typeof statusColors]}>
-              {document.status.toUpperCase()}
+              {document.status ? document.status.toUpperCase() : 'Unknown'}
             </Tag>
             {isExpired && (
               <Tag color="red" icon={<ExclamationCircleOutlined />}>
@@ -329,7 +329,7 @@ const DocumentDetail: React.FC = () => {
                   </Descriptions.Item>
                   <Descriptions.Item label="Status">
                     <Tag color={statusColors[document.status as keyof typeof statusColors]}>
-                      {document.status.toUpperCase()}
+                      {document.status ? document.status.toUpperCase() : 'Unknown'}
                     </Tag>
                   </Descriptions.Item>
                   <Descriptions.Item label="File Size">

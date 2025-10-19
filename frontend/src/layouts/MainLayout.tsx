@@ -83,6 +83,24 @@ const MainLayout: React.FC = () => {
       key: '/departments',
       icon: <TeamOutlined />,
       label: 'Departments',
+      children: [
+        {
+          key: '/departments',
+          label: 'Quản lý phòng ban',
+        },
+        {
+          key: '/departments/statistics',
+          label: 'Thống kê tổng quan',
+        },
+        {
+          key: '/departments/collaboration-matrix',
+          label: 'Ma trận hợp tác',
+        },
+        {
+          key: '/departments/workload-analysis',
+          label: 'Phân tích tải công việc',
+        },
+      ],
     },
     {
       key: '/alerts',

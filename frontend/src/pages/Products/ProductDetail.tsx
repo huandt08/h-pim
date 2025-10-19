@@ -106,15 +106,15 @@ const ProductDetail: React.FC = () => {
 
   // Permission checks
   const canEdit = (): boolean => {
-    if (!currentUser || !product) return false;
+    if (!currentUser || !product || !currentUser.department) return false;
     return (
       product.primary_owner_department === currentUser.department ||
-      product.secondary_access_departments?.includes(currentUser.department)
+      (product.secondary_access_departments?.includes(currentUser.department) || false)
     );
   };
 
   const canDelete = (): boolean => {
-    if (!currentUser || !product) return false;
+    if (!currentUser || !product || !currentUser.department) return false;
     return product.primary_owner_department === currentUser.department;
   };
 
@@ -191,7 +191,7 @@ const ProductDetail: React.FC = () => {
               {product.name}
             </Title>
             <Tag color={statusColors[product.status as keyof typeof statusColors]}>
-              {product.status.toUpperCase()}
+              {product.status ? product.status.toUpperCase() : 'Unknown'}
             </Tag>
           </Space>
         </Col>
@@ -228,7 +228,7 @@ const ProductDetail: React.FC = () => {
               <Descriptions.Item label="Brand">{product.brand || '-'}</Descriptions.Item>
               <Descriptions.Item label="Status">
                 <Tag color={statusColors[product.status as keyof typeof statusColors]}>
-                  {product.status.toUpperCase()}
+                  {product.status ? product.status.toUpperCase() : 'Unknown'}
                 </Tag>
               </Descriptions.Item>
               <Descriptions.Item label="Compliance">

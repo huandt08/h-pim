@@ -102,6 +102,8 @@ const Products: React.FC = () => {
       key: 'status',
       width: 100,
       render: (status: string) => {
+        if (!status) return <Tag color="default">Unknown</Tag>;
+        
         const colors = {
           active: 'green',
           inactive: 'red',
@@ -166,15 +168,15 @@ const Products: React.FC = () => {
 
   // Permission checks
   const canEditProduct = (product: Product): boolean => {
-    if (!currentUser) return false;
+    if (!currentUser || !currentUser.department) return false;
     return (
       product.primary_owner_department === currentUser.department ||
-      product.secondary_access_departments?.includes(currentUser.department)
+      (product.secondary_access_departments?.includes(currentUser.department) || false)
     );
   };
 
   const canDeleteProduct = (product: Product): boolean => {
-    if (!currentUser) return false;
+    if (!currentUser || !currentUser.department) return false;
     return product.primary_owner_department === currentUser.department;
   };
 

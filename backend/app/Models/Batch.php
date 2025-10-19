@@ -28,8 +28,8 @@ class Batch extends Model
     ];
 
     protected $casts = [
-        'production_date' => 'date',
-        'expiry_date' => 'date',
+        'production_date' => 'datetime',
+        'expiry_date' => 'datetime',
         'quantity' => 'integer',
     ];
 

@@ -127,6 +127,8 @@ const Documents: React.FC = () => {
       key: 'status',
       width: 100,
       render: (status: string) => {
+        if (!status) return <Tag color="default">Unknown</Tag>;
+        
         const colors = {
           active: 'green',
           inactive: 'red',
@@ -223,15 +225,15 @@ const Documents: React.FC = () => {
 
   // Permission checks
   const canEditDocument = (document: Document): boolean => {
-    if (!currentUser) return false;
+    if (!currentUser || !currentUser.department) return false;
     return (
       document.primary_owner_department === currentUser.department ||
-      document.secondary_access_departments?.includes(currentUser.department)
+      (document.secondary_access_departments?.includes(currentUser.department) || false)
     );
   };
 
   const canDeleteDocument = (document: Document): boolean => {
-    if (!currentUser) return false;
+    if (!currentUser || !currentUser.department) return false;
     return document.primary_owner_department === currentUser.department;
   };
 

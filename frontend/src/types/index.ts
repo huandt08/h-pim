@@ -20,7 +20,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  department: string; // Changed from department_code to department
+  department: string; // Changed to optional since it can be null/undefined
   status?: 'active' | 'inactive';
   position?: string;
   phone?: string;
@@ -134,7 +134,7 @@ export interface Alert {
   id: string;
   title: string;
   message: string;
-  type: 'compliance_deadline' | 'document_expired' | 'approval_required' | 'system_notification' | 'quality_issue';
+  type: 'missing_document' | 'document_expiry' | 'low_compliance' | 'batch_expiry' | 'system_alert' | 'manual' | 'compliance_deadline' | 'document_expired' | 'approval_required' | 'system_notification' | 'quality_issue';
   priority: 'low' | 'medium' | 'high' | 'critical';
   status: 'open' | 'in_progress' | 'resolved' | 'closed';
   primary_responsible_department: string;
@@ -146,6 +146,7 @@ export interface Alert {
   resolved_at?: string;
   resolved_by?: string;
   resolution_notes?: string;
+  response_time_hours?: number;
   metadata?: Record<string, any>;
   created_at: string;
   updated_at: string;
@@ -154,6 +155,12 @@ export interface Alert {
   batch?: Batch;
   department?: Department;
   resolver?: User;
+  // Computed properties
+  is_overdue?: boolean;
+  age_in_hours?: number;
+  hours_until_due?: number;
+  priority_color?: string;
+  status_color?: string;
 }
 
 // Batch types
@@ -165,11 +172,13 @@ export interface Batch {
   unit?: string;
   production_date: string;
   expiry_date?: string;
-  status: 'planning' | 'in_production' | 'quality_control' | 'approved' | 'released' | 'recalled';
-  quality_status: 'pending' | 'passed' | 'failed' | 'conditional';
+  status?: 'planning' | 'in_production' | 'quality_control' | 'approved' | 'released' | 'recalled' | 'incoming' | 'stored' | 'shipped' | 'expired';
+  quality_status?: 'pending' | 'passed' | 'failed' | 'conditional';
+  supplier?: string;
+  warehouse_notes?: string;
   notes?: string;
-  primary_owner_department: string;
-  secondary_access_departments: string[];
+  primary_owner_department?: string;
+  secondary_access_departments?: string[];
   metadata?: Record<string, any>;
   created_at: string;
   updated_at: string;
@@ -448,6 +457,8 @@ export const QUALITY_STATUSES = [
   'conditional'
 ] as const;
 
+
+
 export const ALERT_PRIORITIES = [
   'low',
   'medium',
@@ -461,3 +472,67 @@ export const ALERT_STATUSES = [
   'resolved',
   'closed'
 ] as const;
+
+// Alert form and response types
+export interface AlertFormData {
+  product_id?: string;
+  document_id?: string;
+  batch_id?: string;
+  type: Alert['type'];
+  priority: Alert['priority'];
+  title: string;
+  message: string;
+  primary_responsible_department: string;
+  secondary_involved_departments?: string[];
+  due_date?: string;
+  metadata?: Record<string, any>;
+}
+
+export interface AlertStatistics {
+  total_alerts: number;
+  by_status: {
+    open: number;
+    in_progress: number;
+    resolved: number;
+    closed: number;
+  };
+  by_priority: {
+    critical: number;
+    high: number;
+    medium: number;
+    low: number;
+  };
+  by_type: Record<string, number>;
+  overdue_count: number;
+  critical_open: number;
+  average_response_time_hours: number;
+  resolution_rate: number;
+  trends: Record<string, number>;
+}
+
+export interface AlertDashboard {
+  primary_alerts: {
+    total: number;
+    critical: number;
+    high: number;
+    open: number;
+    in_progress: number;
+    overdue: number;
+  };
+  secondary_alerts: {
+    total: number;
+    critical: number;
+    high: number;
+  };
+  recent_alerts: Alert[];
+  by_type: Record<string, number>;
+  by_priority: Record<string, number>;
+}
+
+// Extend AlertFilters to include missing properties
+export interface ExtendedAlertFilters extends AlertFilters {
+  department?: string;
+  overdue_only?: boolean;
+  my_alerts_only?: boolean;
+  search?: string;
+}

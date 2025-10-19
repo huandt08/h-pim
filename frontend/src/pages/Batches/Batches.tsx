@@ -107,6 +107,8 @@ const Batches: React.FC = () => {
       key: 'status',
       width: 130,
       render: (status: string) => {
+        if (!status) return <Tag color="default">Unknown</Tag>;
+        
         const colors = {
           planning: 'blue',
           in_production: 'processing',
@@ -124,6 +126,8 @@ const Batches: React.FC = () => {
       key: 'quality_status',
       width: 130,
       render: (status: string) => {
+        if (!status) return <Tag color="default" icon={<ClockCircleOutlined />}>Unknown</Tag>;
+        
         const colors = {
           pending: 'default',
           passed: 'success',
@@ -235,15 +239,15 @@ const Batches: React.FC = () => {
 
   // Permission checks
   const canEditBatch = (batch: Batch): boolean => {
-    if (!currentUser) return false;
+    if (!currentUser || !currentUser.department) return false;
     return (
       batch.primary_owner_department === currentUser.department ||
-      batch.secondary_access_departments?.includes(currentUser.department)
+      (batch.secondary_access_departments?.includes(currentUser.department) || false)
     );
   };
 
   const canDeleteBatch = (batch: Batch): boolean => {
-    if (!currentUser) return false;
+    if (!currentUser || !currentUser.department) return false;
     return batch.primary_owner_department === currentUser.department;
   };
 
