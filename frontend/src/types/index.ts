@@ -14,8 +14,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  department_code: string;
-  department?: Department;
+  department: string; // Changed from department_code to department
   email_verified_at?: string;
   created_at: string;
   updated_at: string;
@@ -26,19 +25,26 @@ export interface User {
 // Product types
 export interface Product {
   id: string;
+  code: string; // Added code field
   name: string;
+  brand?: string; // Added brand
   description?: string;
-  sku: string;
+  detailed_description?: string; // Added detailed_description
+  specifications?: string; // Added specifications
+  ingredients?: string; // Added ingredients
+  usage?: string; // Added usage
+  instructions?: string; // Added instructions
+  storage?: string; // Added storage
+  development_reason?: string; // Added development_reason
+  similar_products?: string; // Added similar_products
+  usp?: string; // Added USP
   primary_owner_department: string;
   secondary_access_departments: string[];
-  product_type: string;
-  status: 'development' | 'active' | 'discontinued' | 'pending_approval';
-  compliance_status: 'compliant' | 'non_compliant' | 'pending' | 'expired';
-  compliance_percentage: number;
+  status: 'active' | 'inactive' | 'pending'; // Updated status values
+  compliance_percentage?: number;
   metadata?: Record<string, any>;
   created_at: string;
   updated_at: string;
-  department?: Department;
   documents?: Document[];
   alerts?: Alert[];
 }
@@ -46,28 +52,27 @@ export interface Product {
 // Document types
 export interface Document {
   id: string;
+  product_id?: string;
+  type: string;
   title: string;
   description?: string;
-  document_type: string;
-  status: 'draft' | 'under_review' | 'approved' | 'rejected' | 'expired';
-  primary_owner_department: string;
-  secondary_access_departments: string[];
-  compliance_required: boolean;
-  compliance_deadline?: string;
   file_path?: string;
   file_name?: string;
   file_size?: number;
   mime_type?: string;
   version: string;
-  is_current_version: boolean;
-  product_id?: string;
-  batch_id?: string;
+  issued_date?: string;
+  expiry_date?: string;
+  issuing_authority?: string;
+  certificate_number?: string;
+  compliance_standards?: string[];
+  primary_owner_department: string;
+  secondary_access_departments: string[];
+  status: 'active' | 'inactive' | 'expired';
   metadata?: Record<string, any>;
   created_at: string;
   updated_at: string;
   product?: Product;
-  batch?: Batch;
-  department?: Department;
   versions?: DocumentVersion[];
 }
 
@@ -120,19 +125,45 @@ export interface Batch {
   batch_number: string;
   product_id: string;
   quantity: number;
+  unit?: string;
   production_date: string;
   expiry_date?: string;
   status: 'planning' | 'in_production' | 'quality_control' | 'approved' | 'released' | 'recalled';
   quality_status: 'pending' | 'passed' | 'failed' | 'conditional';
+  notes?: string;
   primary_owner_department: string;
   secondary_access_departments: string[];
   metadata?: Record<string, any>;
   created_at: string;
   updated_at: string;
+  created_by?: User;
   product?: Product;
-  department?: Department;
   documents?: Document[];
   alerts?: Alert[];
+}
+
+export interface QualityTest {
+  id: string;
+  batch_id: string;
+  test_type: string;
+  test_date: string;
+  result: 'passed' | 'failed' | 'conditional';
+  notes?: string;
+  attachments?: string[];
+  tested_by?: User;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BatchHistory {
+  id: string;
+  batch_id: string;
+  action: string;
+  previous_value?: string;
+  new_value?: string;
+  notes?: string;
+  user?: User;
+  created_at: string;
 }
 
 // API Response types
@@ -162,17 +193,30 @@ export interface PaginationParams {
 export interface ProductFilters extends PaginationParams {
   search?: string;
   status?: string;
-  product_type?: string;
-  compliance_status?: string;
+  compliance_min?: number;
+  compliance_max?: number;
   department?: string;
 }
 
 export interface DocumentFilters extends PaginationParams {
   search?: string;
-  document_type?: string;
+  type?: string;
   status?: string;
-  compliance_required?: boolean;
+  product_id?: string;
+  expiry_within_days?: number;
   department?: string;
+}
+
+export interface BatchFilters extends PaginationParams {
+  search?: string;
+  status?: string;
+  quality_status?: string;
+  product_id?: string;
+  department?: string;
+  production_date_from?: string;
+  production_date_to?: string;
+  expiry_date_from?: string;
+  expiry_date_to?: string;
 }
 
 export interface AlertFilters extends PaginationParams {
@@ -230,7 +274,7 @@ export interface RegisterData {
   email: string;
   password: string;
   password_confirmation: string;
-  department_code: string;
+  department: string; // Changed from department_code to department
 }
 
 export interface AuthResponse {
@@ -250,23 +294,52 @@ export interface MenuItem {
 
 // Form types
 export interface ProductFormData {
+  code: string;
   name: string;
+  brand?: string;
   description?: string;
-  sku: string;
-  product_type: string;
+  detailed_description?: string;
+  specifications?: string;
+  ingredients?: string;
+  usage?: string;
+  instructions?: string;
+  storage?: string;
+  development_reason?: string;
+  similar_products?: string;
+  usp?: string;
+  primary_owner_department: string;
   secondary_access_departments: string[];
+  status: string;
   metadata?: Record<string, any>;
 }
 
 export interface DocumentFormData {
+  product_id?: string;
+  type: string;
   title: string;
   description?: string;
-  document_type: string;
-  compliance_required: boolean;
-  compliance_deadline?: string;
+  version: string;
+  issued_date?: string;
+  expiry_date?: string;
+  issuing_authority?: string;
+  certificate_number?: string;
+  compliance_standards?: string[];
+  primary_owner_department: string;
   secondary_access_departments: string[];
-  product_id?: string;
-  batch_id?: string;
+  status: string;
+  metadata?: Record<string, any>;
+}
+
+export interface BatchFormData {
+  batch_number: string;
+  product_id: string;
+  quantity: number;
+  production_date: string;
+  expiry_date?: string;
+  status: string;
+  quality_status: string;
+  primary_owner_department: string;
+  secondary_access_departments: string[];
   metadata?: Record<string, any>;
 }
 
@@ -282,18 +355,42 @@ export const DEPARTMENTS = {
 } as const;
 
 export const PRODUCT_STATUSES = [
-  'development',
-  'active', 
-  'discontinued',
-  'pending_approval'
+  'active',
+  'inactive', 
+  'pending'
 ] as const;
 
 export const DOCUMENT_STATUSES = [
-  'draft',
-  'under_review',
-  'approved',
-  'rejected',
+  'active',
+  'inactive',
   'expired'
+] as const;
+
+export const DOCUMENT_TYPES = [
+  'certificate',
+  'specification',
+  'safety_sheet',
+  'test_report',
+  'compliance',
+  'regulatory',
+  'manual',
+  'other'
+] as const;
+
+export const BATCH_STATUSES = [
+  'planning',
+  'in_production',
+  'quality_control',
+  'approved',
+  'released',
+  'recalled'
+] as const;
+
+export const QUALITY_STATUSES = [
+  'pending',
+  'passed',
+  'failed',
+  'conditional'
 ] as const;
 
 export const ALERT_PRIORITIES = [

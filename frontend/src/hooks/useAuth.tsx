@@ -157,7 +157,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   const belongsToDepartment = (departmentCode: string): boolean => {
-    return user?.department_code === departmentCode;
+    return user?.department === departmentCode;
   };
 
   const value: AuthContextType = {

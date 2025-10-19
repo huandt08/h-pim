@@ -18,6 +18,7 @@ import {
   ProductOutlined,
   FileTextOutlined,
   AlertOutlined,
+  QrcodeOutlined,
   UserOutlined,
   SettingOutlined,
   LogoutOutlined,
@@ -66,6 +67,11 @@ const MainLayout: React.FC = () => {
       key: '/documents',
       icon: <FileTextOutlined />,
       label: 'Documents',
+    },
+    {
+      key: '/batches',
+      icon: <QrcodeOutlined />,
+      label: 'Batches',
     },
     {
       key: '/alerts',
@@ -192,7 +198,7 @@ const MainLayout: React.FC = () => {
                     {user?.name}
                   </Text>
                   <Text type="secondary" style={{ fontSize: '12px' }}>
-                    {user?.department_code && DEPARTMENTS[user.department_code as keyof typeof DEPARTMENTS]}
+                    {user?.department && DEPARTMENTS[user.department as keyof typeof DEPARTMENTS]}
                   </Text>
                 </div>
               </Space>

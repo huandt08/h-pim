@@ -20,6 +20,9 @@ import Products from './pages/Products/Products';
 import ProductDetail from './pages/Products/ProductDetail';
 import Documents from './pages/Documents/Documents';
 import DocumentDetail from './pages/Documents/DocumentDetail';
+import Batches from './pages/Batches/Batches';
+import BatchDetail from './pages/Batches/BatchDetail';
+import BatchForm from './pages/Batches/BatchForm';
 import Alerts from './pages/Alerts/Alerts';
 import AlertDetail from './pages/Alerts/AlertDetail';
 import Profile from './pages/Profile/Profile';
@@ -84,6 +87,12 @@ const App: React.FC = () => {
                 {/* Documents */}
                 <Route path="documents" element={<Documents />} />
                 <Route path="documents/:id" element={<DocumentDetail />} />
+                
+                {/* Batches */}
+                <Route path="batches" element={<Batches />} />
+                <Route path="batches/new" element={<BatchForm />} />
+                <Route path="batches/:id" element={<BatchDetail />} />
+                <Route path="batches/:id/edit" element={<BatchForm />} />
                 
                 {/* Alerts */}
                 <Route path="alerts" element={<Alerts />} />

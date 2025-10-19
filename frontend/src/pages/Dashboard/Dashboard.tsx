@@ -94,7 +94,7 @@ const Dashboard: React.FC = () => {
         <Title level={2}>Dashboard</Title>
         <Paragraph type="secondary">
           Welcome back, {user?.name}! Here's an overview of your {' '}
-          {user?.department_code && DEPARTMENTS[user.department_code as keyof typeof DEPARTMENTS]} department.
+          {user?.department && DEPARTMENTS[user.department as keyof typeof DEPARTMENTS]} department.
         </Paragraph>
       </div>
 
@@ -305,8 +305,8 @@ const Dashboard: React.FC = () => {
             <Row style={{ marginTop: '24px' }}>
               <Col span={24}>
                 <Alert
-                  message={`Department: ${DEPARTMENTS[user.department_code as keyof typeof DEPARTMENTS]}`}
-                  description={`You are currently working in the ${DEPARTMENTS[user.department_code as keyof typeof DEPARTMENTS]} department. You have access to products and documents assigned to your department.`}
+                  message={`Department: ${DEPARTMENTS[user.department as keyof typeof DEPARTMENTS]}`}
+                  description={`You are currently working in the ${DEPARTMENTS[user.department as keyof typeof DEPARTMENTS]} department. You have access to products and documents assigned to your department.`}
                   type="info"
                   showIcon
                 />

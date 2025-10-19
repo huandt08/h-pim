@@ -48,7 +48,7 @@ export class AuthService {
 
   // Get current user profile
   static async getProfile(): Promise<ApiResponse<User>> {
-    return await apiCall<User>('GET', '/user/profile');
+    return await apiCall<User>('GET', '/auth/user');
   }
 
   // Update user profile
@@ -123,13 +123,13 @@ export class AuthService {
   // Check if user belongs to department
   static belongsToDepartment(departmentCode: string): boolean {
     const user = this.getCurrentUser();
-    return user?.department_code === departmentCode;
+    return user?.department === departmentCode;
   }
 
   // Get user's department
   static getUserDepartment(): string | null {
     const user = this.getCurrentUser();
-    return user?.department_code || null;
+    return user?.department || null;
   }
 }
 

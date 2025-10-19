@@ -87,7 +87,7 @@ const Register: React.FC = () => {
         </Form.Item>
 
         <Form.Item
-          name="department_code"
+          name="department"
           label="Department"
           rules={[
             { required: true, message: 'Please select your department!' },
