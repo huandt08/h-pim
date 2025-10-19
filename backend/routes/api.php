@@ -131,7 +131,20 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('products/completeness/statistics', [\App\Http\Controllers\Api\ProductCompletenessController::class, 'getStatistics']);
     Route::get('products/completeness/low-compliance', [\App\Http\Controllers\Api\ProductCompletenessController::class, 'getLowCompliance']);
     
-    // Document routes
+    // Document Requirements routes (Matrix Management)
+    Route::get('document-requirements/categories', [\App\Http\Controllers\Api\DocumentRequirementController::class, 'getCategories']);
+    Route::get('document-requirements/matrix', [\App\Http\Controllers\Api\DocumentRequirementController::class, 'getRequirementsMatrix']);
+    Route::get('document-requirements/products/{product}/required', [\App\Http\Controllers\Api\DocumentRequirementController::class, 'getRequiredDocumentsForProduct']);
+    Route::get('document-requirements/products/{product}/compliance', [\App\Http\Controllers\Api\DocumentRequirementController::class, 'checkProductCompliance']);
+    Route::get('document-requirements/products/{product}/missing', [\App\Http\Controllers\Api\DocumentRequirementController::class, 'getMissingDocuments']);
+    Route::get('document-requirements/departments/{department?}/categories', [\App\Http\Controllers\Api\DocumentRequirementController::class, 'getCategoriesByDepartment']);
+    Route::get('document-requirements/categories/{category}', [\App\Http\Controllers\Api\DocumentRequirementController::class, 'getCategoryDetails']);
+    Route::get('document-requirements/categories/{category}/access', [\App\Http\Controllers\Api\DocumentRequirementController::class, 'checkDepartmentAccess']);
+    Route::get('document-requirements/departments/{department?}/stats', [\App\Http\Controllers\Api\DocumentRequirementController::class, 'getDepartmentComplianceStats']);
+    Route::post('document-requirements/batch-check', [\App\Http\Controllers\Api\DocumentRequirementController::class, 'batchCheckCompliance']);
+    Route::get('document-requirements/system/summary', [\App\Http\Controllers\Api\DocumentRequirementController::class, 'getSystemComplianceSummary']);
+
+    // Document Storage routes (File Management)
     Route::apiResource('documents', DocumentController::class);
     Route::post('documents/{document}/approve', [DocumentController::class, 'approve']);
     Route::post('documents/{document}/reject', [DocumentController::class, 'reject']);

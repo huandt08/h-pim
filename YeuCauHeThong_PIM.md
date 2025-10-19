@@ -131,19 +131,19 @@ Xây dựng hệ thống quản lý thông tin sản phẩm tập trung, cho ph�
 #### Mô hình phân quyền tài liệu
 **Nguyên tắc**: Mỗi loại tài liệu có một **phòng ban chủ quản** (Primary Owner) và có thể có các **phòng ban có quyền truy cập** (Secondary Access).
 
-#### Danh mục loại tài liệu và phòng ban chủ quản
+#### Danh mục loại tài liệu
 
-| STT | Loại tài liệu | Phòng ban chủ quản | Phòng ban có quyền truy cập | Mô tả |
-|-----|---------------|-------------------|---------------------------|-------|
-| 1 | **Thông tin sản phẩm** | RND | MKT, ECOM | Mô tả chi tiết, thành phần, công dụng |
-| 2 | **Hình ảnh/Video gốc** | RND | MKT, ECOM, COM | Hình ảnh chất lượng cao, video gốc |
-| 3 | **Giấy tờ sản phẩm** | RND | LEG | Giấy công bố, phép quảng cáo, đăng ký lưu hành |
-| 4 | **Giấy tờ về lô hàng** | PUR | WH, LEG | Hợp đồng, hóa đơn, biên bản nhập kho |
-| 5 | **Content Marketing** | MKT | ECOM, COM | Ảnh thiết kế, video quảng cáo, nội dung MKT |
-| 6 | **Content E-commerce** | ECOM | MKT | Mô tả sản phẩm trên nền tảng, hình ảnh ECOM |
-| 7 | **Content Truyền thông** | COM | MKT | Ảnh/video cho PR, thông cáo báo chí |
-| 8 | **Tài liệu pháp lý** | LEG | RND, PUR | Hợp đồng, giấy tờ pháp lý |
-| 9 | **Tài liệu kho bãi** | WH | PUR | Biên bản xuất/nhập kho, báo cáo tồn kho |
+| STT | Loại tài liệu | Mô tả |
+|-----|---------------|-------|
+| 1 | **Thông tin sản phẩm** | Mô tả chi tiết, thành phần, công dụng |
+| 2 | **Hình ảnh/Video gốc** | Hình ảnh chất lượng cao, video gốc |
+| 3 | **Giấy tờ sản phẩm** | Giấy công bố, phép quảng cáo, đăng ký lưu hành |
+| 4 | **Giấy tờ về lô hàng** | Hợp đồng, hóa đơn, biên bản nhập kho |
+| 5 | **Content Marketing** | Ảnh thiết kế, video quảng cáo, nội dung MKT |
+| 6 | **Content E-commerce** | Mô tả sản phẩm trên nền tảng, hình ảnh ECOM |
+| 7 | **Content Truyền thông** | Ảnh/video cho PR, thông cáo báo chí |
+| 8 | **Tài liệu pháp lý** | Hợp đồng, giấy tờ pháp lý |
+| 9 | **Tài liệu kho bãi** | Biên bản xuất/nhập kho, báo cáo tồn kho |
 
 ### 6.2 Ma trận phân quyền tài liệu chi tiết
 
