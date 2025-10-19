@@ -21,7 +21,7 @@ class ProductController extends Controller
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
-        $departmentCode = $user->department_code;
+        $departmentCode = $user->department;
 
         $filters = $request->only(['status', 'compliance_min', 'compliance_max', 'search']);
         
@@ -54,7 +54,7 @@ class ProductController extends Controller
 
         // Check access permission
         $user = request()->user();
-        if (!$product->hasAccess($user->department_code)) {
+        if (!$product->hasAccess($user->department)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Access denied'
@@ -140,7 +140,7 @@ class ProductController extends Controller
 
         // Check access permission (only primary owner can update)
         $user = $request->user();
-        if ($product->primary_owner_department !== $user->department_code) {
+        if ($product->primary_owner_department !== $user->department) {
             return response()->json([
                 'success' => false,
                 'message' => 'Only primary owner department can update product'
@@ -212,7 +212,7 @@ class ProductController extends Controller
 
         // Check access permission (only primary owner can delete)
         $user = $request->user();
-        if ($product->primary_owner_department !== $user->department_code) {
+        if ($product->primary_owner_department !== $user->department) {
             return response()->json([
                 'success' => false,
                 'message' => 'Only primary owner department can delete product'
@@ -241,7 +241,7 @@ class ProductController extends Controller
     public function stats(Request $request): JsonResponse
     {
         $user = $request->user();
-        $departmentCode = $user->department_code;
+        $departmentCode = $user->department;
 
         $stats = $this->productService->getProductStatsByDepartment($departmentCode);
 
@@ -301,7 +301,7 @@ class ProductController extends Controller
 
         // Check access permission
         $user = $request->user();
-        if ($product->primary_owner_department !== $user->department_code) {
+        if ($product->primary_owner_department !== $user->department) {
             return response()->json([
                 'success' => false,
                 'message' => 'Only primary owner department can update compliance'

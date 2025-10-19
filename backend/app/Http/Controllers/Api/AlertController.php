@@ -16,7 +16,7 @@ class AlertController extends Controller
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
-        $departmentCode = $user->department_code;
+        $departmentCode = $user->department;
 
         $query = Alert::forDepartment($departmentCode);
 
@@ -72,7 +72,7 @@ class AlertController extends Controller
 
         // Check access permission
         $user = request()->user();
-        $userDept = $user->department_code;
+        $userDept = $user->department;
         
         if ($alert->primary_responsible_department !== $userDept && 
             !in_array($userDept, $alert->secondary_involved_departments ?? [])) {
@@ -104,7 +104,7 @@ class AlertController extends Controller
 
         // Check permission (only primary responsible department can update status)
         $user = $request->user();
-        if ($alert->primary_responsible_department !== $user->department_code) {
+        if ($alert->primary_responsible_department !== $user->department) {
             return response()->json([
                 'success' => false,
                 'message' => 'Only primary responsible department can update alert status'
@@ -155,7 +155,7 @@ class AlertController extends Controller
 
         // Check permission
         $user = $request->user();
-        if ($alert->primary_responsible_department !== $user->department_code) {
+        if ($alert->primary_responsible_department !== $user->department) {
             return response()->json([
                 'success' => false,
                 'message' => 'Only primary responsible department can resolve alert'
@@ -199,7 +199,7 @@ class AlertController extends Controller
 
         // Check permission
         $user = $request->user();
-        if ($alert->primary_responsible_department !== $user->department_code) {
+        if ($alert->primary_responsible_department !== $user->department) {
             return response()->json([
                 'success' => false,
                 'message' => 'Only primary responsible department can escalate alert'
@@ -236,7 +236,7 @@ class AlertController extends Controller
     public function dashboard(Request $request): JsonResponse
     {
         $user = $request->user();
-        $departmentCode = $user->department_code;
+        $departmentCode = $user->department;
 
         // Primary responsibility alerts
         $primaryAlerts = Alert::where('primary_responsible_department', $departmentCode);
@@ -287,7 +287,7 @@ class AlertController extends Controller
     public function critical(Request $request): JsonResponse
     {
         $user = $request->user();
-        $departmentCode = $user->department_code;
+        $departmentCode = $user->department;
 
         $criticalAlerts = Alert::forDepartment($departmentCode)
             ->where('priority', 'critical')
@@ -312,7 +312,7 @@ class AlertController extends Controller
     public function overdue(Request $request): JsonResponse
     {
         $user = $request->user();
-        $departmentCode = $user->department_code;
+        $departmentCode = $user->department;
 
         $overdueAlerts = Alert::forDepartment($departmentCode)
             ->overdue()
@@ -336,7 +336,7 @@ class AlertController extends Controller
     public function stats(Request $request): JsonResponse
     {
         $user = $request->user();
-        $departmentCode = $user->department_code;
+        $departmentCode = $user->department;
 
         $stats = [
             'department' => $departmentCode,
@@ -385,7 +385,7 @@ class AlertController extends Controller
         ]);
 
         $user = $request->user();
-        $departmentCode = $user->department_code;
+        $departmentCode = $user->department;
         $query = $request->input('q');
 
         $searchQuery = Alert::forDepartment($departmentCode)

@@ -24,7 +24,7 @@ class DocumentController extends Controller
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
-        $departmentCode = $user->department_code;
+        $departmentCode = $user->department;
 
         $filters = $request->only(['category', 'type', 'status', 'required_only', 'search']);
         
@@ -57,7 +57,7 @@ class DocumentController extends Controller
 
         // Check access permission
         $user = request()->user();
-        if (!$document->hasAccess($user->department_code)) {
+        if (!$document->hasAccess($user->department)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Access denied'
@@ -108,7 +108,7 @@ class DocumentController extends Controller
 
         // Check permission to create document in department
         $user = $request->user();
-        if ($validated['primary_owner_department'] !== $user->department_code) {
+        if ($validated['primary_owner_department'] !== $user->department) {
             return response()->json([
                 'success' => false,
                 'message' => 'Can only create documents for your own department'
@@ -149,8 +149,8 @@ class DocumentController extends Controller
 
         // Check access permission (primary owner can edit, secondary with read_edit access)
         $user = $request->user();
-        if ($document->primary_owner_department !== $user->department_code && 
-            !$document->hasAccess($user->department_code, 'edit')) {
+        if ($document->primary_owner_department !== $user->department && 
+            !$document->hasAccess($user->department, 'edit')) {
             return response()->json([
                 'success' => false,
                 'message' => 'Insufficient permissions to edit this document'
@@ -217,7 +217,7 @@ class DocumentController extends Controller
 
         // Check access permission (only primary owner can delete)
         $user = $request->user();
-        if ($document->primary_owner_department !== $user->department_code) {
+        if ($document->primary_owner_department !== $user->department) {
             return response()->json([
                 'success' => false,
                 'message' => 'Only primary owner department can delete document'
@@ -256,8 +256,8 @@ class DocumentController extends Controller
 
         // Check access permission
         $user = $request->user();
-        if ($document->primary_owner_department !== $user->department_code && 
-            !$document->hasAccess($user->department_code, 'edit')) {
+        if ($document->primary_owner_department !== $user->department && 
+            !$document->hasAccess($user->department, 'edit')) {
             return response()->json([
                 'success' => false,
                 'message' => 'Insufficient permissions to upload new version'
@@ -305,7 +305,7 @@ class DocumentController extends Controller
 
         // Check access permission
         $user = request()->user();
-        if (!$document->hasAccess($user->department_code)) {
+        if (!$document->hasAccess($user->department)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Access denied'
@@ -336,7 +336,7 @@ class DocumentController extends Controller
 
         // Check access permission
         $user = $request->user();
-        if (!$product->hasAccess($user->department_code)) {
+        if (!$product->hasAccess($user->department)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Access denied'
@@ -357,7 +357,7 @@ class DocumentController extends Controller
     public function stats(Request $request): JsonResponse
     {
         $user = $request->user();
-        $departmentCode = $user->department_code;
+        $departmentCode = $user->department;
 
         $stats = $this->documentService->getDocumentStatsByDepartment($departmentCode);
 
@@ -413,7 +413,7 @@ class DocumentController extends Controller
 
         // Check access permission
         $user = request()->user();
-        if (!$document->hasAccess($user->department_code)) {
+        if (!$document->hasAccess($user->department)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Access denied'

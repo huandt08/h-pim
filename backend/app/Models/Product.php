@@ -80,8 +80,13 @@ class Product extends Model
      */
     public function scopeAccessibleBy($query, string $departmentCode)
     {
-        return $query->where('primary_owner_department', $departmentCode)
-            ->orWhereJsonContains('secondary_access_departments', $departmentCode);
+        return $query->where(function($q) use ($departmentCode) {
+            $q->where('primary_owner_department', $departmentCode)
+              ->orWhere(function($subQ) use ($departmentCode) {
+                  $subQ->whereNotNull('secondary_access_departments')
+                       ->whereJsonContains('secondary_access_departments', $departmentCode);
+              });
+        });
     }
 
     /**

@@ -10,11 +10,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Spatie\Permission\Traits\HasRoles;
 use Laravel\Sanctum\HasApiTokens;
+use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\Activitylog\LogOptions;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, HasRoles, HasApiTokens;
+    use HasFactory, Notifiable, HasRoles, HasApiTokens, LogsActivity;
 
     /**
      * The attributes that are mass assignable.
@@ -25,9 +27,9 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
-        'department_code',
-        'position',
-        'phone',
+        'department',
+        'role',
+        'cross_department_access',
         'is_active'
     ];
 
@@ -51,16 +53,28 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
-            'is_active' => 'boolean'
+            'is_active' => 'boolean',
+            'cross_department_access' => 'array'
         ];
+    }
+
+    /**
+     * Get the options for activity logging
+     */
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly(['name', 'email', 'department', 'role', 'is_active'])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs();
     }
 
     /**
      * Get the department this user belongs to
      */
-    public function department(): BelongsTo
+    public function departmentModel(): BelongsTo
     {
-        return $this->belongsTo(Department::class, 'department_code', 'code');
+        return $this->belongsTo(Department::class, 'department', 'code');
     }
 
     /**
@@ -68,7 +82,7 @@ class User extends Authenticatable
      */
     public function resolvedAlerts(): HasMany
     {
-        return $this->hasMany(Alert::class, 'resolved_by');
+        return $this->hasMany(\App\Models\Alert::class, 'resolved_by');
     }
 
     /**
@@ -92,7 +106,7 @@ class User extends Authenticatable
      */
     public function scopeByDepartment($query, string $departmentCode)
     {
-        return $query->where('department_code', $departmentCode);
+        return $query->where('department', $departmentCode);
     }
 
     /**
@@ -100,7 +114,7 @@ class User extends Authenticatable
      */
     public function hasProductAccess(Product $product): bool
     {
-        return $product->hasAccess($this->department_code);
+        return $product->hasAccess($this->department);
     }
 
     /**
@@ -108,7 +122,7 @@ class User extends Authenticatable
      */
     public function hasDocumentAccess(Document $document, string $accessType = 'read'): bool
     {
-        return $document->hasAccess($this->department_code, $accessType);
+        return $document->hasAccess($this->department);
     }
 
     /**
@@ -116,7 +130,7 @@ class User extends Authenticatable
      */
     public function getAccessibleProducts()
     {
-        return Product::accessibleBy($this->department_code);
+        return Product::accessibleBy($this->department);
     }
 
     /**
@@ -124,6 +138,6 @@ class User extends Authenticatable
      */
     public function getAccessibleDocuments()
     {
-        return Document::accessibleBy($this->department_code);
+        return Document::accessibleBy($this->department);
     }
 }

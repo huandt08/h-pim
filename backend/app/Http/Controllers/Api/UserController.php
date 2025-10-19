@@ -26,7 +26,7 @@ class UserController extends Controller
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
-                'department_code' => $user->department_code,
+                'department' => $user->department,
                 'department' => $user->department,
                 'email_verified_at' => $user->email_verified_at,
                 'created_at' => $user->created_at,
@@ -122,7 +122,7 @@ class UserController extends Controller
             ], 403);
         }
 
-        $users = User::where('department_code', $user->department_code)
+        $users = User::where('department', $user->department)
             ->with(['department', 'roles'])
             ->get()
             ->map(function ($departmentUser) {
@@ -140,7 +140,7 @@ class UserController extends Controller
             'success' => true,
             'data' => $users,
             'meta' => [
-                'department' => $user->department_code,
+                'department' => $user->department,
                 'total' => $users->count()
             ]
         ]);
@@ -175,7 +175,7 @@ class UserController extends Controller
         });
 
         if ($request->has('department')) {
-            $query->where('department_code', $request->input('department'));
+            $query->where('department', $request->input('department'));
         }
 
         $users = $query->get()->map(function ($foundUser) {
@@ -183,7 +183,7 @@ class UserController extends Controller
                 'id' => $foundUser->id,
                 'name' => $foundUser->name,
                 'email' => $foundUser->email,
-                'department_code' => $foundUser->department_code,
+                'department' => $foundUser->department_code,
                 'department' => $foundUser->department,
                 'roles' => $foundUser->getRoleNames(),
                 'created_at' => $foundUser->created_at
@@ -212,7 +212,7 @@ class UserController extends Controller
             'user' => [
                 'id' => $user->id,
                 'name' => $user->name,
-                'department' => $user->department_code
+                'department' => $user->department
             ],
             'recent_activities' => $user->activities()
                 ->with(['subject', 'causer'])
@@ -262,13 +262,13 @@ class UserController extends Controller
     public function dashboard(Request $request): JsonResponse
     {
         $user = $request->user();
-        $departmentCode = $user->department_code;
+        $departmentCode = $user->department;
 
         // Get counts for user's department involvement
         $dashboard = [
             'user_info' => [
                 'name' => $user->name,
-                'department' => $user->department_code,
+                'department' => $user->department,
                 'roles' => $user->getRoleNames()
             ],
             'quick_stats' => [

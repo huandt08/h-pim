@@ -73,7 +73,7 @@ class DepartmentController extends Controller
     public function myMetrics(Request $request): JsonResponse
     {
         $user = $request->user();
-        $departmentCode = $user->department_code;
+        $departmentCode = $user->department;
 
         $metrics = $this->departmentService->calculateDepartmentMetricsWithRoles($departmentCode);
 
@@ -116,7 +116,7 @@ class DepartmentController extends Controller
     public function myWorkload(Request $request): JsonResponse
     {
         $user = $request->user();
-        $departmentCode = $user->department_code;
+        $departmentCode = $user->department;
 
         $workload = $this->departmentService->getDepartmentWorkload($departmentCode);
 
@@ -189,7 +189,7 @@ class DepartmentController extends Controller
     public function myDashboard(Request $request): JsonResponse
     {
         $user = $request->user();
-        $departmentCode = $user->department_code;
+        $departmentCode = $user->department;
 
         $dashboardStats = $this->departmentService->getDepartmentDashboardStats($departmentCode);
 

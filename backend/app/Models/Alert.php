@@ -277,7 +277,7 @@ class Alert extends Model
             'resolved' => '#52c41a',
             'closed' => '#d9d9d9',
             default => '#d9d9d9'
-        ];
+        };
     }
 
     /**
