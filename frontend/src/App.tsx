@@ -23,10 +23,16 @@ import DocumentDetail from './pages/Documents/DocumentDetail';
 import Batches from './pages/Batches/Batches';
 import BatchDetail from './pages/Batches/BatchDetail';
 import BatchForm from './pages/Batches/BatchForm';
-import Alerts from './pages/Alerts/Alerts';
-import AlertDetail from './pages/Alerts/AlertDetail';
-import Profile from './pages/Profile/Profile';
-import Settings from './pages/Settings/Settings';
+import Users from './pages/Users/Users';
+import UserDetail from './pages/Users/UserDetail';
+import UserForm from './pages/Users/UserForm';
+import Departments from './pages/Departments/Departments';
+import DepartmentDetail from './pages/Departments/DepartmentDetail';
+import DepartmentForm from './pages/Departments/DepartmentForm';
+// import Alerts from './pages/Alerts/Alerts';
+// import AlertDetail from './pages/Alerts/AlertDetail';
+// import Profile from './pages/Profile/Profile';
+// import Settings from './pages/Settings/Settings';
 
 // Configure dayjs
 dayjs.locale('vi');
@@ -94,13 +100,25 @@ const App: React.FC = () => {
                 <Route path="batches/:id" element={<BatchDetail />} />
                 <Route path="batches/:id/edit" element={<BatchForm />} />
                 
+                {/* Users */}
+                <Route path="users" element={<Users />} />
+                <Route path="users/new" element={<UserForm />} />
+                <Route path="users/:id" element={<UserDetail />} />
+                <Route path="users/:id/edit" element={<UserForm />} />
+                
+                {/* Departments */}
+                <Route path="departments" element={<Departments />} />
+                <Route path="departments/new" element={<DepartmentForm />} />
+                <Route path="departments/:code" element={<DepartmentDetail />} />
+                <Route path="departments/:code/edit" element={<DepartmentForm />} />
+                
                 {/* Alerts */}
-                <Route path="alerts" element={<Alerts />} />
-                <Route path="alerts/:id" element={<AlertDetail />} />
+                {/* <Route path="alerts" element={<Alerts />} />
+                <Route path="alerts/:id" element={<AlertDetail />} /> */}
                 
                 {/* Profile & Settings */}
-                <Route path="profile" element={<Profile />} />
-                <Route path="settings" element={<Settings />} />
+                {/* <Route path="profile" element={<Profile />} />
+                <Route path="settings" element={<Settings />} /> */}
                 
                 {/* Default redirect */}
                 <Route path="" element={<Navigate to="/dashboard" replace />} />

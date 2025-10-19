@@ -1,14 +1,43 @@
 import { apiCall } from './api';
 import { 
   Department, 
+  DepartmentFilters,
   DashboardStats,
   ApiResponse 
 } from '../types';
 
 export class DepartmentService {
-  // Get all departments
-  static async getDepartments(): Promise<ApiResponse<Department[]>> {
-    return await apiCall<Department[]>('GET', '/departments');
+  // Get all departments with filters
+  static async getDepartments(filters?: DepartmentFilters): Promise<ApiResponse<Department[]>> {
+    const params = new URLSearchParams();
+    if (filters?.search) params.append('search', filters.search);
+    if (filters?.status) params.append('status', filters.status);
+    if (filters?.has_users !== undefined) params.append('has_users', filters.has_users.toString());
+    if (filters?.created_from) params.append('created_from', filters.created_from);
+    if (filters?.created_to) params.append('created_to', filters.created_to);
+    
+    const url = `/departments${params.toString() ? `?${params.toString()}` : ''}`;
+    return await apiCall<Department[]>('GET', url);
+  }
+
+  // Create department
+  static async createDepartment(data: any): Promise<ApiResponse<Department>> {
+    return await apiCall<Department>('POST', '/departments', data);
+  }
+
+  // Update department
+  static async updateDepartment(code: string, data: any): Promise<ApiResponse<Department>> {
+    return await apiCall<Department>('PUT', `/departments/${code}`, data);
+  }
+
+  // Delete department
+  static async deleteDepartment(code: string): Promise<ApiResponse<void>> {
+    return await apiCall<void>('DELETE', `/departments/${code}`);
+  }
+
+  // Get all department statistics
+  static async getAllDepartmentStats(): Promise<ApiResponse<any>> {
+    return await apiCall('GET', '/departments/all-stats');
   }
 
   // Get single department

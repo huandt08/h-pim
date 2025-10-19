@@ -5,6 +5,12 @@ export interface Department {
   name: string;
   description?: string;
   head_user_id?: string;
+  manager?: User; // Manager information
+  status: 'active' | 'inactive';
+  users_count?: number;
+  products_count?: number;
+  documents_count?: number;
+  efficiency_score?: number;
   created_at: string;
   updated_at: string;
 }
@@ -15,11 +21,42 @@ export interface User {
   name: string;
   email: string;
   department: string; // Changed from department_code to department
+  status?: 'active' | 'inactive';
+  position?: string;
+  phone?: string;
+  bio?: string;
+  avatar_url?: string;
+  last_login_at?: string;
   email_verified_at?: string;
   created_at: string;
   updated_at: string;
   permissions?: string[];
   roles?: string[];
+}
+
+export interface UserFilters {
+  search?: string;
+  department?: string;
+  status?: 'active' | 'inactive';
+  role?: string;
+  created_from?: string;
+  created_to?: string;
+  last_login_from?: string;
+  last_login_to?: string;
+}
+
+export interface UserFormData {
+  name: string;
+  email: string;
+  department: string;
+  password?: string;
+  password_confirmation?: string;
+  status?: 'active' | 'inactive';
+  role?: string;
+  permissions?: string[];
+  phone?: string;
+  position?: string;
+  bio?: string;
 }
 
 // Product types
@@ -340,6 +377,24 @@ export interface BatchFormData {
   quality_status: string;
   primary_owner_department: string;
   secondary_access_departments: string[];
+  metadata?: Record<string, any>;
+}
+
+export interface DepartmentFilters {
+  search?: string;
+  status?: 'active' | 'inactive';
+  has_users?: boolean;
+  created_from?: string;
+  created_to?: string;
+}
+
+export interface DepartmentFormData {
+  code: string;
+  name: string;
+  description?: string;
+  manager_id?: string;
+  parent_department?: string;
+  status?: 'active' | 'inactive';
   metadata?: Record<string, any>;
 }
 

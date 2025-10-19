@@ -14,6 +14,410 @@ use Illuminate\Validation\Rule;
 class UserController extends Controller
 {
     /**
+     * Display a listing of users
+     */
+    public function index(Request $request): JsonResponse
+    {
+        // Check if user has permission to manage users
+        if (!$request->user()->can('manage_users')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Access denied'
+            ], 403);
+        }
+
+        $request->validate([
+            'search' => 'nullable|string|max:255',
+            'department' => 'nullable|string',
+            'status' => 'nullable|string|in:active,inactive',
+            'per_page' => 'nullable|integer|min:1|max:100'
+        ]);
+
+        $query = User::with(['roles'])->orderBy('name');
+
+        // Apply filters
+        if ($request->filled('search')) {
+            $search = $request->input('search');
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%");
+            });
+        }
+
+        if ($request->filled('department')) {
+            $query->where('department', $request->input('department'));
+        }
+
+        if ($request->filled('status')) {
+            $status = $request->input('status');
+            if ($status === 'active') {
+                $query->whereNotNull('email_verified_at');
+            } else {
+                $query->whereNull('email_verified_at');
+            }
+        }
+
+        $perPage = $request->input('per_page', 15);
+        $users = $query->paginate($perPage);
+
+        $users->getCollection()->transform(function ($user) {
+            return [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'department' => $user->department,
+                'status' => $user->email_verified_at ? 'active' : 'inactive',
+                'email_verified_at' => $user->email_verified_at,
+                'last_login_at' => $user->last_login_at,
+                'created_at' => $user->created_at,
+                'updated_at' => $user->updated_at,
+                'roles' => $user->getRoleNames(),
+                'permissions' => $user->getAllPermissions()->pluck('name')
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => $users->items(),
+            'meta' => [
+                'current_page' => $users->currentPage(),
+                'from' => $users->firstItem(),
+                'last_page' => $users->lastPage(),
+                'per_page' => $users->perPage(),
+                'to' => $users->lastItem(),
+                'total' => $users->total()
+            ]
+        ]);
+    }
+
+    /**
+     * Store a newly created user
+     */
+    public function store(Request $request): JsonResponse
+    {
+        if (!$request->user()->can('manage_users')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Access denied'
+            ], 403);
+        }
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|unique:users,email',
+            'password' => ['required', Password::defaults()],
+            'department' => 'required|string',
+            'role' => 'nullable|string',
+            'permissions' => 'nullable|array',
+            'permissions.*' => 'string'
+        ]);
+
+        try {
+            $user = User::create([
+                'name' => $validated['name'],
+                'email' => $validated['email'],
+                'password' => Hash::make($validated['password']),
+                'department' => $validated['department'],
+                'email_verified_at' => now() // Auto-verify for admin created users
+            ]);
+
+            // Assign role if provided
+            if (!empty($validated['role'])) {
+                $user->assignRole($validated['role']);
+            }
+
+            // Assign permissions if provided
+            if (!empty($validated['permissions'])) {
+                $user->givePermissionTo($validated['permissions']);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'User created successfully',
+                'data' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'department' => $user->department,
+                    'status' => 'active',
+                    'created_at' => $user->created_at
+                ]
+            ], 201);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to create user'
+            ], 500);
+        }
+    }
+
+    /**
+     * Display the specified user
+     */
+    public function show(Request $request, string $id): JsonResponse
+    {
+        $currentUser = $request->user();
+        
+        // Users can view their own profile or if they have manage_users permission
+        if ($currentUser->id !== $id && !$currentUser->can('manage_users')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Access denied'
+            ], 403);
+        }
+
+        $user = User::with(['roles'])->find($id);
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User not found'
+            ], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'department' => $user->department,
+                'status' => $user->email_verified_at ? 'active' : 'inactive',
+                'email_verified_at' => $user->email_verified_at,
+                'last_login_at' => $user->last_login_at,
+                'created_at' => $user->created_at,
+                'updated_at' => $user->updated_at,
+                'roles' => $user->getRoleNames(),
+                'permissions' => $user->getAllPermissions()->pluck('name')
+            ]
+        ]);
+    }
+
+    /**
+     * Update the specified user
+     */
+    public function update(Request $request, string $id): JsonResponse
+    {
+        $currentUser = $request->user();
+        
+        // Users can update their own profile or if they have manage_users permission
+        if ($currentUser->id !== $id && !$currentUser->can('manage_users')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Access denied'
+            ], 403);
+        }
+
+        $user = User::find($id);
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User not found'
+            ], 404);
+        }
+
+        $rules = [
+            'name' => 'sometimes|required|string|max:255',
+            'email' => [
+                'sometimes',
+                'required',
+                'email',
+                Rule::unique('users')->ignore($user->id)
+            ]
+        ];
+
+        // Only managers can update these fields
+        if ($currentUser->can('manage_users')) {
+            $rules = array_merge($rules, [
+                'department' => 'sometimes|required|string',
+                'password' => ['sometimes', 'nullable', Password::defaults()],
+                'role' => 'sometimes|nullable|string',
+                'permissions' => 'sometimes|nullable|array',
+                'permissions.*' => 'string'
+            ]);
+        }
+
+        $validated = $request->validate($rules);
+
+        try {
+            $updateData = collect($validated)->except(['password', 'role', 'permissions'])->toArray();
+            
+            if (!empty($validated['password'])) {
+                $updateData['password'] = Hash::make($validated['password']);
+            }
+
+            $user->update($updateData);
+
+            // Update role if provided and user has permission
+            if ($currentUser->can('manage_users') && array_key_exists('role', $validated)) {
+                $user->syncRoles($validated['role'] ? [$validated['role']] : []);
+            }
+
+            // Update permissions if provided and user has permission
+            if ($currentUser->can('manage_users') && array_key_exists('permissions', $validated)) {
+                $user->syncPermissions($validated['permissions'] ?? []);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'User updated successfully',
+                'data' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'department' => $user->department,
+                    'updated_at' => $user->fresh()->updated_at
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update user'
+            ], 500);
+        }
+    }
+
+    /**
+     * Remove the specified user
+     */
+    public function destroy(Request $request, string $id): JsonResponse
+    {
+        if (!$request->user()->can('manage_users')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Access denied'
+            ], 403);
+        }
+
+        // Prevent self-deletion
+        if ($request->user()->id === $id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Cannot delete your own account'
+            ], 422);
+        }
+
+        $user = User::find($id);
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User not found'
+            ], 404);
+        }
+
+        try {
+            $user->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'User deleted successfully'
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete user'
+            ], 500);
+        }
+    }
+
+    /**
+     * Activate user
+     */
+    public function activate(Request $request, string $id): JsonResponse
+    {
+        if (!$request->user()->can('manage_users')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Access denied'
+            ], 403);
+        }
+
+        $user = User::find($id);
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User not found'
+            ], 404);
+        }
+
+        try {
+            $user->update(['email_verified_at' => now()]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'User activated successfully',
+                'data' => [
+                    'id' => $user->id,
+                    'status' => 'active'
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to activate user'
+            ], 500);
+        }
+    }
+
+    /**
+     * Deactivate user
+     */
+    public function deactivate(Request $request, string $id): JsonResponse
+    {
+        if (!$request->user()->can('manage_users')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Access denied'
+            ], 403);
+        }
+
+        // Prevent self-deactivation
+        if ($request->user()->id === $id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Cannot deactivate your own account'
+            ], 422);
+        }
+
+        $user = User::find($id);
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User not found'
+            ], 404);
+        }
+
+        try {
+            $user->update(['email_verified_at' => null]);
+
+            // Revoke all tokens
+            $user->tokens()->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'User deactivated successfully',
+                'data' => [
+                    'id' => $user->id,
+                    'status' => 'inactive'
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to deactivate user'
+            ], 500);
+        }
+    }
+    /**
      * Get current user profile
      */
     public function profile(Request $request): JsonResponse
@@ -26,7 +430,6 @@ class UserController extends Controller
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
-                'department' => $user->department,
                 'department' => $user->department,
                 'email_verified_at' => $user->email_verified_at,
                 'created_at' => $user->created_at,
@@ -183,7 +586,6 @@ class UserController extends Controller
                 'id' => $foundUser->id,
                 'name' => $foundUser->name,
                 'email' => $foundUser->email,
-                'department' => $foundUser->department_code,
                 'department' => $foundUser->department,
                 'roles' => $foundUser->getRoleNames(),
                 'created_at' => $foundUser->created_at

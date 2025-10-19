@@ -5,3 +5,4 @@ export { default as DocumentService } from './document';
 export { default as AlertService } from './alert';
 export { default as DepartmentService } from './department';
 export { default as BatchService } from './batch';
+export { default as UserService } from './user';

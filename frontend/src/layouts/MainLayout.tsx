@@ -19,6 +19,7 @@ import {
   FileTextOutlined,
   AlertOutlined,
   QrcodeOutlined,
+  TeamOutlined,
   UserOutlined,
   SettingOutlined,
   LogoutOutlined,
@@ -72,6 +73,16 @@ const MainLayout: React.FC = () => {
       key: '/batches',
       icon: <QrcodeOutlined />,
       label: 'Batches',
+    },
+    {
+      key: '/users',
+      icon: <UserOutlined />,
+      label: 'Users',
+    },
+    {
+      key: '/departments',
+      icon: <TeamOutlined />,
+      label: 'Departments',
     },
     {
       key: '/alerts',
