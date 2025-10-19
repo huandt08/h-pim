@@ -19,12 +19,11 @@ return new class extends Migration
             $table->bigInteger('file_size');
             $table->string('mime_type', 100);
             $table->text('changes_summary')->nullable();
-            $table->uuid('created_by')->nullable();
+            $table->foreignId('created_by')->nullable()->constrained('users')->onDelete('set null');
             $table->boolean('is_current')->default(false);
             $table->timestamps();
             
             $table->foreign('document_id')->references('id')->on('documents')->onDelete('cascade');
-            $table->foreign('created_by')->references('id')->on('users')->onDelete('set null');
             
             $table->unique(['document_id', 'version_number']);
             $table->index(['document_id', 'is_current']);

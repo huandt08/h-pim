@@ -25,9 +25,9 @@ return new class extends Migration
             $table->timestamp('due_date')->nullable();
             $table->enum('status', ['pending', 'acknowledged', 'in_progress', 'resolved', 'dismissed'])->default('pending');
             $table->integer('response_time_hours')->nullable(); // For metrics
-            $table->uuid('acknowledged_by')->nullable();
+            $table->foreignId('acknowledged_by')->nullable()->constrained('users')->onDelete('set null');
             $table->timestamp('acknowledged_at')->nullable();
-            $table->uuid('resolved_by')->nullable();
+            $table->foreignId('resolved_by')->nullable()->constrained('users')->onDelete('set null');
             $table->timestamp('resolved_at')->nullable();
             $table->text('resolution_notes')->nullable();
             $table->timestamps();
@@ -36,8 +36,6 @@ return new class extends Migration
             $table->foreign('document_id')->references('id')->on('documents')->onDelete('cascade');
             $table->foreign('batch_id')->references('id')->on('batches')->onDelete('cascade');
             $table->foreign('primary_responsible_department')->references('code')->on('departments');
-            $table->foreign('acknowledged_by')->references('id')->on('users')->onDelete('set null');
-            $table->foreign('resolved_by')->references('id')->on('users')->onDelete('set null');
             
             $table->index(['primary_responsible_department', 'status']);
             $table->index(['priority', 'status']);
