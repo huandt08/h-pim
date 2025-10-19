@@ -126,7 +126,7 @@ Xây dựng hệ thống quản lý thông tin sản phẩm tập trung, cho ph�
 
 ## 6. QUẢN LÝ TÀI LIỆU
 
-### 5.1 Cấu trúc phân loại tài liệu
+### 6.1 Cấu trúc phân loại tài liệu
 
 #### Mô hình phân quyền tài liệu
 **Nguyên tắc**: Mỗi loại tài liệu có một **phòng ban chủ quản** (Primary Owner) và có thể có các **phòng ban có quyền truy cập** (Secondary Access).
@@ -145,7 +145,7 @@ Xây dựng hệ thống quản lý thông tin sản phẩm tập trung, cho ph�
 | 8 | **Tài liệu pháp lý** | LEG | RND, PUR | Hợp đồng, giấy tờ pháp lý |
 | 9 | **Tài liệu kho bãi** | WH | PUR | Biên bản xuất/nhập kho, báo cáo tồn kho |
 
-### 5.2 Ma trận phân quyền tài liệu chi tiết
+### 6.2 Ma trận phân quyền tài liệu chi tiết
 
 #### Quy tắc phân quyền:
 - **Phòng ban chủ quản**: Có quyền Create, Read, Update, Delete
@@ -184,7 +184,7 @@ Xây dựng hệ thống quản lý thông tin sản phẩm tập trung, cho ph�
 | Content Truyền thông | Video PR | File | COM | MKT | | 72h | Video cho truyền thông |
 | Content Truyền thông | Thông cáo báo chí | Văn bản | COM | MKT, LEG | | 24h | Press release |
 
-### 5.3 Thuộc tính tài liệu
+### 6.3 Thuộc tính tài liệu
 ```
 - ID tài liệu (duy nhất)
 - Tên tài liệu
@@ -207,9 +207,9 @@ Xây dựng hệ thống quản lý thông tin sản phẩm tập trung, cho ph�
 - Ghi chú
 ```
 
-### 5.4 Quản lý phiên bản (Version Control) đơn giản
+### 6.4 Quản lý phiên bản (Version Control) đơn giản
 
-#### 5.4.1 Workflow phiên bản theo phân quyền
+#### 6.4.1 Workflow phiên bản theo phân quyền
 **A. Primary Owner:**
 - Toàn quyền tạo, sửa, xóa tài liệu
 - Quản lý phân quyền cho phòng ban khác
@@ -219,30 +219,30 @@ Xây dựng hệ thống quản lý thông tin sản phẩm tập trung, cho ph�
 - **Read + Comment**: Xem, tải xuống, và để lại comment
 - **Read + Edit**: Xem, tải xuống, và chỉnh sửa trực tiếp
 
-#### 5.4.2 Tính năng Version Control
+#### 6.4.2 Tính năng Version Control
 - **Auto-versioning**: Tự động tạo version mới khi có thay đổi
 - **Simple edit**: Chỉnh sửa trực tiếp, không cần approval
 - **Rollback capability**: Khôi phục version trước đó
 - **Change tracking**: Theo dõi chi tiết từng thay đổi và người thực hiện
 - **Lock mechanism**: Tránh xung đột khi nhiều người cùng chỉnh sửa
 
-#### 5.4.3 Notification System
+#### 6.4.3 Notification System
 - **Real-time alerts** khi có version mới
 - **Change notifications** tới tất cả người có quyền truy cập
 - **Deadline reminders** cho tài liệu bắt buộc
 
 ## 7. HỆ THỐNG PHÂN QUYỀN
 
-### 6.1 Vai trò và quyền hạn theo mô hình Primary Owner + Secondary Access
+### 7.1 Vai trò và quyền hạn theo mô hình Primary Owner + Secondary Access
 
-#### 6.1.1 Super Admin
+#### 7.1.1 Super Admin
 - Toàn quyền trên hệ thống
 - Quản lý phòng ban, người dùng
 - Cấu hình hệ thống và phân quyền
 - Xem tất cả tài liệu
 - Thiết lập quy tắc Primary Owner và Secondary Access
 
-#### 6.1.2 Department Admin (Primary Owner)
+#### 7.1.2 Department Admin (Primary Owner)
 **Với tài liệu phòng ban chủ quản:**
 - Toàn quyền: Create, Read, Update, Delete
 - Phân quyền cho phòng ban khác truy cập
@@ -251,7 +251,7 @@ Xây dựng hệ thống quản lý thông tin sản phẩm tập trung, cho ph�
 **Với tài liệu có quyền truy cập:**
 - Read, Comment, Edit (theo cấu hình được phân quyền)
 
-#### 6.1.3 Department User (Primary Owner)
+#### 7.1.3 Department User (Primary Owner)
 **Với tài liệu phòng ban chủ quản:**
 - Create, Read, Update, Disable
 - Upload và quản lý version
@@ -259,20 +259,20 @@ Xây dựng hệ thống quản lý thông tin sản phẩm tập trung, cho ph�
 **Với tài liệu có quyền truy cập:**
 - Read, Comment, Edit (theo cấu hình được phân quyền)
 
-#### 6.1.4 Cross-Department User (Secondary Access)
+#### 7.1.4 Cross-Department User (Secondary Access)
 **Quyền hạn theo cấu hình:**
 - **Read Only**: Chỉ xem và download
 - **Read + Comment**: Xem, download, comment
 - **Read + Edit**: Xem, download, chỉnh sửa trực tiếp
 
-#### 6.1.5 View Only
+#### 7.1.5 View Only
 - Xem tài liệu được phân quyền cụ thể
 - Không có quyền tải xuống hoặc chỉnh sửa
 - Thường dùng cho external stakeholders
 
-### 6.2 Ma trận phân quyền chi tiết
+### 7.2 Ma trận phân quyền chi tiết
 
-#### 6.2.1 Quyền hệ thống cơ bản
+#### 7.2.1 Quyền hệ thống cơ bản
 | Chức năng | Super Admin | Dept Admin | Dept User | Cross-Dept User | View Only |
 |-----------|-------------|------------|-----------|-----------------|-----------|
 | Quản lý phòng ban | ✓ | ✗ | ✗ | ✗ | ✗ |
@@ -314,7 +314,7 @@ Xây dựng hệ thống quản lý thông tin sản phẩm tập trung, cho ph�
 
 ### 8.1 Giao diện quản trị (Admin Panel)
 
-#### 7.1.1 Dashboard với Alert Center
+#### 8.1.1 Dashboard với Alert Center
 **A. Tổng quan hệ thống**
 - Số lượng sản phẩm, lô hàng, tài liệu
 - Hoạt động gần đây
@@ -497,28 +497,28 @@ Xây dựng hệ thống quản lý thông tin sản phẩm tập trung, cho ph�
 
 ## 9. YÊU CẦU KỸ THUẬT
 
-### 8.1 Yêu cầu chức năng
+### 9.1 Yêu cầu chức năng
 
-#### 8.1.1 Upload và quản lý file
+#### 9.1.1 Upload và quản lý file
 - Hỗ trợ đa dạng định dạng: PDF, DOC, XLS, JPG, PNG, MP4, etc.
 - Giới hạn kích thước file
 - Kiểm tra virus
 - Tự động tạo thumbnail cho hình ảnh
 - Preview file online
 
-#### 8.1.2 Tìm kiếm và filter
+#### 9.1.2 Tìm kiếm và filter
 - Tìm kiếm full-text trong tài liệu
 - Filter theo phòng ban, loại tài liệu, ngày tạo
 - Tìm kiếm nâng cao với nhiều điều kiện
 
-#### 8.1.3 Hệ thống tự động kiểm tra tài liệu định kỳ
+#### 9.1.3 Hệ thống tự động kiểm tra tài liệu định kỳ
 
-##### 8.1.3.1 Mục đích
+##### 9.1.3.1 Mục đích
 - Đảm bảo các tài liệu bắt buộc luôn được cập nhật đầy đủ
 - Tự động phát hiện tài liệu thiếu hoặc hết hạn
 - Gửi cảnh báo và nhắc nhở khi cần thiết
 
-##### 8.1.3.2 Cơ chế hoạt động
+##### 9.1.3.2 Cơ chế hoạt động
 
 **A. Scheduler tự động (Cron Jobs)**
 ```
@@ -776,7 +776,7 @@ def check_product_completeness(product_id):
     }
 ```
 
-##### 8.1.3.3 Hệ thống cảnh báo và thông báo theo phòng ban
+##### 9.1.3.3 Hệ thống cảnh báo và thông báo theo phòng ban
 
 **A. Cấp độ cảnh báo với phân công rõ ràng**
 - **Critical (Đỏ)**: Tài liệu bắt buộc quá hạn → Gửi cho Primary Owner + Department Admin
@@ -846,7 +846,7 @@ Trân trọng,
 Hệ thống PIM
 ```
 
-##### 8.1.3.4 Dashboard cảnh báo
+##### 9.1.3.4 Dashboard cảnh báo
 
 **A. Widget tổng quan với Product Completeness**
 ```
@@ -902,15 +902,15 @@ Hệ thống PIM
 - Monthly Compliance Report  
 - Quarterly Trend Analysis
 
-#### 8.1.4 Tích hợp Lark Base - Đẩy dữ liệu báo cáo tự động
+#### 9.1.4 Tích hợp Lark Base - Đẩy dữ liệu báo cáo tự động
 
-##### 8.1.4.1 Mục đích tích hợp
+##### 9.1.4.1 Mục đích tích hợp
 - Đồng bộ dữ liệu báo cáo từ PIM sang Lark Base
 - Tạo dashboard trực quan trên Lark Base cho leadership
 - Chia sẻ báo cáo real-time với stakeholders
 - Tận dụng tính năng collaboration của Lark Suite
 
-##### 8.1.4.2 Kiến trúc tích hợp
+##### 9.1.4.2 Kiến trúc tích hợp
 
 **A. Lark Base API Integration**
 ```
@@ -923,7 +923,7 @@ PIM System → API Gateway → Lark Base API → Lark Base Tables
 - API Rate limiting và retry mechanism
 - Encryption dữ liệu khi truyền
 
-##### 8.1.4.3 Cấu trúc dữ liệu trên Lark Base
+##### 9.1.4.3 Cấu trúc dữ liệu trên Lark Base
 
 **A. Bảng chính (Main Tables)**
 
@@ -980,7 +980,7 @@ PIM System → API Gateway → Lark Base API → Lark Base Tables
 | responsible_person | Text | Người phụ trách |
 | department | Select | Phòng ban |
 
-##### 8.1.4.4 Lịch đồng bộ dữ liệu
+##### 9.1.4.4 Lịch đồng bộ dữ liệu
 
 **A. Real-time Sync (Đồng bộ thời gian thực)**
 - Khi có cảnh báo mới: Ngay lập tức push vào Daily Alerts Table
@@ -994,7 +994,7 @@ PIM System → API Gateway → Lark Base API → Lark Base Tables
 - Monthly (Ngày 1, 02:00 AM): Archive old data, cleanup
 ```
 
-##### 8.1.4.5 API Workflow
+##### 9.1.4.5 API Workflow
 
 **A. Data Push Process**
 ```python
@@ -1028,7 +1028,7 @@ def push_to_lark_base(table_name, data):
 - Logging: Ghi log tất cả API calls và errors
 - Monitoring: Alert khi fail rate > 5%
 
-##### 8.1.4.6 Cấu hình tích hợp
+##### 9.1.4.6 Cấu hình tích hợp
 
 **A. Lark Base Configuration**
 ```json
@@ -1066,7 +1066,7 @@ def push_to_lark_base(table_name, data):
 }
 ```
 
-##### 8.1.4.7 Dashboard trên Lark Base
+##### 9.1.4.7 Dashboard trên Lark Base
 
 **A. Executive Dashboard**
 - Biểu đồ tổng quan compliance rate
@@ -1086,41 +1086,41 @@ def push_to_lark_base(table_name, data):
 - Task assignment và tracking
 - SLA monitoring
 
-#### 8.1.5 Notification system đơn giản
+#### 9.1.5 Notification system đơn giản
 - Thông báo khi có tài liệu mới được tạo/cập nhật
 - Nhắc nhở cập nhật tài liệu bắt buộc theo deadline
 - Alert khi có thay đổi trong tài liệu có quyền truy cập
 - Integration với hệ thống kiểm tra tự động
 - **Push notifications qua Lark Bot**
 
-#### 8.1.6 Backup và bảo mật
+#### 9.1.6 Backup và bảo mật
 - Sao lưu dữ liệu định kỳ
 - Mã hóa file nhạy cảm
 - Log hoạt động người dùng
 - Two-factor authentication
 
-### 8.2 Yêu cầu phi chức năng
+### 9.2 Yêu cầu phi chức năng
 
-#### 8.2.1 Hiệu năng
+#### 9.2.1 Hiệu năng
 - Thời gian tải trang < 3 giây
 - Hỗ trợ đồng thời 100+ người dùng
 - Upload file < 30 giây cho file 100MB
 
-#### 8.2.2 Khả năng mở rộng
+#### 9.2.2 Khả năng mở rộng
 - Architecture microservices
 - Database có thể scale horizontal
 - API RESTful cho tích hợp
 
-#### 8.2.3 Tương thích
+#### 9.2.3 Tương thích
 - Responsive design cho mobile
 - Hỗ trợ các trình duyệt chính
 - API cho mobile app
 
-## 9. BÁO CÁO VÀ THỐNG KÊ
+## 10. BÁO CÁO VÀ THỐNG KÊ
 
-### 9.1 Báo cáo tự động kiểm tra tài liệu
+### 10.1 Báo cáo tự động kiểm tra tài liệu
 
-#### 9.1.1 Báo cáo hàng ngày (Daily Report)
+#### 10.1.1 Báo cáo hàng ngày (Daily Report)
 **A. Cảnh báo trong ngày**
 - Danh sách tài liệu hết hạn hôm nay
 - Tài liệu bắt buộc chưa được cập nhật
@@ -1144,7 +1144,7 @@ def push_to_lark_base(table_name, data):
 - SKU003: [RND→MKT] Giấy phép quảng cáo hết hạn sau 7 ngày - RnD chủ quản, MKT cần biết
 ```
 
-#### 9.1.2 Báo cáo tuần (Weekly Report)
+#### 10.1.2 Báo cáo tuần (Weekly Report)
 **A. Tổng hợp tình trạng theo phòng ban**
 
 | Phòng ban | Sản phẩm quản lý | Tài liệu thiếu | Tỷ lệ hoàn thành | Xu hướng |
@@ -1159,7 +1159,7 @@ def push_to_lark_base(table_name, data):
 2. RnD: 3 sản phẩm mới chưa có mô tả chi tiết
 3. ECOM: 2 sản phẩm thiếu content marketing
 
-#### 9.1.3 Báo cáo tháng (Monthly Report)
+#### 10.1.3 Báo cáo tháng (Monthly Report)
 **A. Compliance Score theo phòng ban**
 - Điểm tuân thủ từ 0-100
 - So sánh với tháng trước
@@ -1170,7 +1170,7 @@ def push_to_lark_base(table_name, data):
 - Các loại tài liệu thường bị thiếu nhất
 - Thời gian trung bình xử lý cảnh báo
 
-#### 9.1.4 Báo cáo đặc biệt (Special Reports)
+#### 10.1.4 Báo cáo đặc biệt (Special Reports)
 
 **A. Audit Report (Quarterly)**
 - Kiểm tra toàn diện tất cả tài liệu
@@ -1182,7 +1182,7 @@ def push_to_lark_base(table_name, data):
 - Thời gian phản hồi trung bình
 - KPI tuân thủ tài liệu
 
-### 9.2 Báo cáo cho quản lý
+### 10.2 Báo cáo cho quản lý
 - Báo cáo tình trạng tài liệu theo phòng ban
 - Thống kê số lượng sản phẩm, lô hàng  
 - Báo cáo hoạt động người dùng
@@ -1190,14 +1190,14 @@ def push_to_lark_base(table_name, data):
 - **Dashboard cảnh báo real-time**
 - **Compliance score theo KPI**
 
-### 9.3 Dashboard analytics
+### 10.3 Dashboard analytics
 - Biểu đồ tăng trưởng số lượng tài liệu
 - Top tài liệu được truy cập nhiều nhất
 - Thống kê theo thời gian thực
 
-### 9.4 Báo cáo trên Lark Base
+### 10.4 Báo cáo trên Lark Base
 
-#### 9.4.1 Executive Reports (Báo cáo điều hành)
+#### 10.4.1 Executive Reports (Báo cáo điều hành)
 **A. Real-time Executive Dashboard**
 - **Overall Compliance Score**: Điểm tuân thủ tổng thể của công ty
 - **Department Rankings**: Xếp hạng các phòng ban theo performance
@@ -1225,7 +1225,7 @@ ATTENTION NEEDED:
 ⚠️ Warehouse: 81% compliance
 ```
 
-#### 9.4.2 Operational Dashboards
+#### 10.4.2 Operational Dashboards
 **A. Department Manager View**
 - Performance của phòng ban so với target
 - Danh sách action items cần xử lý
@@ -1238,7 +1238,7 @@ ATTENTION NEEDED:
 - Workload balancing
 - Training needs identification
 
-#### 9.4.3 Automated Reporting Features
+#### 10.4.3 Automated Reporting Features
 
 **A. Smart Alerts trên Lark**
 - Bot notification khi có critical issues
@@ -1258,7 +1258,7 @@ ATTENTION NEEDED:
 - Real-time document sharing
 - Cross-department visibility và comments
 
-#### 9.4.4 Sample Lark Base Views
+#### 10.4.4 Sample Lark Base Views
 
 **A. "Management Overview" View**
 ```
@@ -1290,7 +1290,7 @@ MKT        |         6         |          8             |    0    |     4     | 
 ECOM       |         4         |          6             |    1    |     3     |      Low
 ```
 
-#### 9.4.5 Integration Benefits
+#### 10.4.5 Integration Benefits
 ✅ **Real-time visibility** cho leadership
 ✅ **Collaborative workflow** giữa các phòng ban  
 ✅ **Mobile access** qua Lark mobile app
@@ -1299,7 +1299,7 @@ ECOM       |         4         |          6             |    1    |     3     | 
 ✅ **Easy sharing** với external stakeholders
 ✅ **No additional training** - sử dụng Lark có sẵn
 
-## 10. ROADMAP TRIỂN KHAI
+## 11. ROADMAP TRIỂN KHAI
 
 ### Phase 1 (2-3 tháng)
 - Core system: Quản lý phòng ban, sản phẩm, lô hàng
@@ -1337,7 +1337,7 @@ ECOM       |         4         |          6             |    1    |     3     | 
 - Advanced monitoring và alerting
 - System optimization và fine-tuning
 
-## 11. KẾT LUẬN
+## 12. KẾT LUẬN
 
 Hệ thống PIM này cung cấp giải pháp **quản lý thông tin và tài liệu sản phẩm tập trung**, không phải hệ thống quản lý kho, đảm bảo:
 
