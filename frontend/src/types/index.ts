@@ -136,7 +136,7 @@ export interface Alert {
   message: string;
   type: 'missing_document' | 'document_expiry' | 'low_compliance' | 'batch_expiry' | 'system_alert' | 'manual' | 'compliance_deadline' | 'document_expired' | 'approval_required' | 'system_notification' | 'quality_issue';
   priority: 'low' | 'medium' | 'high' | 'critical';
-  status: 'open' | 'in_progress' | 'resolved' | 'closed';
+  status: 'open' | 'in_progress' | 'resolved' | 'closed' | 'escalated';
   primary_responsible_department: string;
   secondary_involved_departments?: string[];
   product_id?: string;
@@ -266,10 +266,14 @@ export interface BatchFilters extends PaginationParams {
 }
 
 export interface AlertFilters extends PaginationParams {
+  search?: string;
   priority?: string;
   status?: string;
   type?: string;
+  department?: string;
+  assigned_to?: string;
   primary_only?: boolean;
+  date_range?: any[];
 }
 
 // Dashboard types
@@ -460,17 +464,18 @@ export const QUALITY_STATUSES = [
 
 
 export const ALERT_PRIORITIES = [
-  'low',
-  'medium',
-  'high',
-  'critical'
+  { value: 'low', label: 'Thấp' },
+  { value: 'medium', label: 'Trung bình' },
+  { value: 'high', label: 'Cao' },
+  { value: 'critical', label: 'Cực kỳ khẩn cấp' }
 ] as const;
 
 export const ALERT_STATUSES = [
-  'open',
-  'in_progress',
-  'resolved',
-  'closed'
+  { value: 'open', label: 'Mở' },
+  { value: 'in_progress', label: 'Đang xử lý' },
+  { value: 'resolved', label: 'Đã giải quyết' },
+  { value: 'closed', label: 'Đã đóng' },
+  { value: 'escalated', label: 'Đã leo thang' }
 ] as const;
 
 // Alert form and response types

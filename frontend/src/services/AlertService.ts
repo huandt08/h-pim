@@ -63,8 +63,10 @@ class AlertService {
   }
 
   // Escalate alert
-  async escalateAlert(id: string): Promise<ApiResponse<Alert>> {
-    const response = await api.post(`${this.baseURL}/${id}/escalate`);
+  async escalateAlert(id: string, escalationNotes?: string): Promise<ApiResponse<Alert>> {
+    const response = await api.post(`${this.baseURL}/${id}/escalate`, {
+      escalation_notes: escalationNotes
+    });
     return response.data;
   }
 

@@ -32,8 +32,9 @@ import DepartmentForm from './pages/Departments/DepartmentForm';
 import DepartmentStatistics from './components/DepartmentStatistics';
 import CollaborationMatrix from './components/CollaborationMatrix';
 import WorkloadAnalysis from './components/WorkloadAnalysis';
-// import Alerts from './pages/Alerts/Alerts';
-// import AlertDetail from './pages/Alerts/AlertDetail';
+import Alerts from './pages/Alerts/Alerts';
+import AlertDetail from './pages/Alerts/AlertDetail';
+import AlertForm from './pages/Alerts/AlertForm';
 // import Profile from './pages/Profile/Profile';
 // import Settings from './pages/Settings/Settings';
 
@@ -119,8 +120,10 @@ const App: React.FC = () => {
                 <Route path="departments/:code/edit" element={<DepartmentForm />} />
                 
                 {/* Alerts */}
-                {/* <Route path="alerts" element={<Alerts />} />
-                <Route path="alerts/:id" element={<AlertDetail />} /> */}
+                <Route path="alerts" element={<Alerts />} />
+                <Route path="alerts/new" element={<AlertForm />} />
+                <Route path="alerts/:id" element={<AlertDetail />} />
+                <Route path="alerts/edit/:id" element={<AlertForm />} />
                 
                 {/* Profile & Settings */}
                 {/* <Route path="profile" element={<Profile />} />
