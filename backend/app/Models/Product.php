@@ -36,12 +36,32 @@ class Product extends Model
         'secondary_access_departments',
         'status',
         'compliance_percentage',
+        'completeness_score',
+        'missing_fields',
+        'validation_errors',
+        'last_completeness_check',
+        'field_completion_status',
+        'completion_deadline_hours',
     ];
 
     protected $casts = [
         'secondary_access_departments' => 'array',
         'compliance_percentage' => 'decimal:2',
+        'completeness_score' => 'decimal:2',
+        'missing_fields' => 'array',
+        'validation_errors' => 'array',
+        'last_completeness_check' => 'datetime',
+        'field_completion_status' => 'array',
     ];
+
+    // Accessor to ensure secondary_access_departments is always an array
+    public function getSecondaryAccessDepartmentsAttribute($value)
+    {
+        if (is_string($value)) {
+            return json_decode($value, true) ?: [];
+        }
+        return is_array($value) ? $value : [];
+    }
 
     public function department(): BelongsTo
     {
@@ -92,7 +112,7 @@ class Product extends Model
     /**
      * Scope to filter by compliance percentage
      */
-    public function scopeByCompliance($query, float $minCompliance = null, float $maxCompliance = null)
+    public function scopeByCompliance($query, ?float $minCompliance = null, ?float $maxCompliance = null)
     {
         if ($minCompliance !== null) {
             $query->where('compliance_percentage', '>=', $minCompliance);

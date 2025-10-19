@@ -43,7 +43,7 @@ class ProductController extends Controller
      */
     public function show(string $id): JsonResponse
     {
-        $product = Product::with(['department', 'documents', 'alerts', 'batches'])->find($id);
+        $product = Product::with(['documents', 'alerts', 'batches'])->find($id);
 
         if (!$product) {
             return response()->json([
@@ -61,11 +61,15 @@ class ProductController extends Controller
             ], 403);
         }
 
-        $productDetails = $this->productService->getProductDetails($id);
+        // Ensure secondary_access_departments is properly formatted as array
+        $productData = $product->toArray();
+        if (isset($productData['secondary_access_departments']) && is_string($productData['secondary_access_departments'])) {
+            $productData['secondary_access_departments'] = json_decode($productData['secondary_access_departments'], true) ?: [];
+        }
 
         return response()->json([
             'success' => true,
-            'data' => $productDetails
+            'data' => $productData
         ]);
     }
 
@@ -348,5 +352,143 @@ class ProductController extends Controller
                 'total' => $products->count()
             ]
         ]);
+    }
+
+    /**
+     * Check product compliance
+     */
+    public function checkCompliance(string $id): JsonResponse
+    {
+        $product = Product::find($id);
+
+        if (!$product) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Product not found'
+            ], 404);
+        }
+
+        // Check access permission
+        $user = request()->user();
+        if (!$product->hasAccess($user->department)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Access denied'
+            ], 403);
+        }
+
+        try {
+            $compliance = $this->productService->updateProductCompliance($product);
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'product_id' => $product->id,
+                    'product_name' => $product->name,
+                    'compliance_percentage' => $compliance,
+                    'department' => $product->primary_owner_department,
+                    'status' => $product->status,
+                    'last_updated' => $product->updated_at
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to check compliance: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get product documents
+     */
+    public function getDocuments(string $id): JsonResponse
+    {
+        $product = Product::find($id);
+
+        if (!$product) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Product not found'
+            ], 404);
+        }
+
+        // Check access permission
+        $user = request()->user();
+        if (!$product->hasAccess($user->department)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Access denied'
+            ], 403);
+        }
+
+        try {
+            $documents = $product->documents()->with(['versions'])->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => $documents,
+                'meta' => [
+                    'product_id' => $product->id,
+                    'product_name' => $product->name,
+                    'total_documents' => $documents->count()
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch documents: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get product alerts
+     */
+    public function getAlerts(string $id): JsonResponse
+    {
+        $product = Product::find($id);
+
+        if (!$product) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Product not found'
+            ], 404);
+        }
+
+        // Check access permission
+        $user = request()->user();
+        if (!$product->hasAccess($user->department)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Access denied'
+            ], 403);
+        }
+
+        try {
+            $alerts = $product->alerts()
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => $alerts,
+                'meta' => [
+                    'product_id' => $product->id,
+                    'product_name' => $product->name,
+                    'total_alerts' => $alerts->count(),
+                    'critical_alerts' => $alerts->where('priority', 'critical')->count(),
+                    'open_alerts' => $alerts->where('status', 'open')->count()
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch alerts: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

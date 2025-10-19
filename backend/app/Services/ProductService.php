@@ -235,13 +235,13 @@ class ProductService
         $documents = $product->documents();
         
         $total = $documents->count();
-        $required = $documents->copy()->where('is_required', true)->count();
-        $completed = $documents->copy()->where('is_required', true)
+        $required = $product->documents()->where('is_required', true)->count();
+        $completed = $product->documents()->where('is_required', true)
             ->where('status', 'active')
             ->whereNotNull('file_path')->count();
-        $expired = $documents->copy()->where('deadline', '<', now())
+        $expired = $product->documents()->where('deadline', '<', now())
             ->where('status', 'active')->count();
-        $expiringSoon = $documents->copy()->where('deadline', '>', now())
+        $expiringSoon = $product->documents()->where('deadline', '>', now())
             ->where('deadline', '<=', now()->addDays(30))->count();
 
         return [

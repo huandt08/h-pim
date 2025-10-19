@@ -63,6 +63,16 @@ const MainLayout: React.FC = () => {
       key: '/products',
       icon: <ProductOutlined />,
       label: 'Products',
+      children: [
+        {
+          key: '/products',
+          label: 'Danh sách sản phẩm',
+        },
+        {
+          key: '/products/completeness',
+          label: 'Kiểm tra Completeness',
+        },
+      ],
     },
     {
       key: '/documents',

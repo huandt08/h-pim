@@ -18,6 +18,7 @@ import Register from './pages/Auth/Register';
 import Dashboard from './pages/Dashboard/Dashboard';
 import Products from './pages/Products/Products';
 import ProductDetail from './pages/Products/ProductDetail';
+import ProductCompletenessPage from './pages/Products/ProductCompletenessPage';
 import Documents from './pages/Documents/Documents';
 import DocumentDetail from './pages/Documents/DocumentDetail';
 import Batches from './pages/Batches/Batches';
@@ -92,6 +93,7 @@ const App: React.FC = () => {
                 
                 {/* Products */}
                 <Route path="products" element={<Products />} />
+                <Route path="products/completeness" element={<ProductCompletenessPage />} />
                 <Route path="products/:id" element={<ProductDetail />} />
                 
                 {/* Documents */}

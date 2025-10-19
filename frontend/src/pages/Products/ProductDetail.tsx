@@ -21,12 +21,15 @@ import {
   ArrowLeftOutlined,
   FileTextOutlined,
   AlertOutlined,
-  BarChartOutlined
+  BarChartOutlined,
+  PlayCircleOutlined,
+  CheckCircleOutlined
 } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Product, DEPARTMENTS } from '../../types';
 import ProductService from '../../services/product';
 import AuthService from '../../services/auth';
+import ProductCompleteness from '../../components/ProductCompleteness';
 
 const { Title, Paragraph } = Typography;
 const { TabPane } = Tabs;
@@ -39,6 +42,8 @@ const ProductDetail: React.FC = () => {
   const [compliance, setCompliance] = useState<any>(null);
   const [documents, setDocuments] = useState<any[]>([]);
   const [alerts, setAlerts] = useState<any[]>([]);
+  const [showCompleteness, setShowCompleteness] = useState(false);
+  const [completenessLoading, setCompletenessLoading] = useState(false);
   const currentUser = AuthService.getCurrentUser();
 
   // Load product details
@@ -188,15 +193,23 @@ const ProductDetail: React.FC = () => {
               Back
             </Button>
             <Title level={2} style={{ margin: 0 }}>
-              {product.name}
+              {product?.name || 'Unknown Product'}
             </Title>
-            <Tag color={statusColors[product.status as keyof typeof statusColors]}>
-              {product.status ? product.status.toUpperCase() : 'Unknown'}
+            <Tag color={statusColors[product?.status as keyof typeof statusColors] || 'default'}>
+              {product?.status ? product.status.toUpperCase() : 'Unknown'}
             </Tag>
           </Space>
         </Col>
         <Col>
           <Space>
+            <Button 
+              type="default" 
+              icon={<PlayCircleOutlined />}
+              onClick={() => setShowCompleteness(!showCompleteness)}
+              loading={completenessLoading}
+            >
+              {showCompleteness ? 'Ẩn' : 'Kiểm tra'} Completeness
+            </Button>
             {canEdit() && (
               <Button 
                 type="primary" 
@@ -224,15 +237,15 @@ const ProductDetail: React.FC = () => {
         <Col span={16}>
           <Card title="Product Information">
             <Descriptions column={2} bordered>
-              <Descriptions.Item label="Product Code">{product.code}</Descriptions.Item>
-              <Descriptions.Item label="Brand">{product.brand || '-'}</Descriptions.Item>
+              <Descriptions.Item label="Product Code">{product?.code || '-'}</Descriptions.Item>
+              <Descriptions.Item label="Brand">{product?.brand || '-'}</Descriptions.Item>
               <Descriptions.Item label="Status">
-                <Tag color={statusColors[product.status as keyof typeof statusColors]}>
-                  {product.status ? product.status.toUpperCase() : 'Unknown'}
+                <Tag color={statusColors[product?.status as keyof typeof statusColors] || 'default'}>
+                  {product?.status ? product.status.toUpperCase() : 'Unknown'}
                 </Tag>
               </Descriptions.Item>
               <Descriptions.Item label="Compliance">
-                {product.compliance_percentage !== null && product.compliance_percentage !== undefined ? (
+                {product?.compliance_percentage !== null && product?.compliance_percentage !== undefined ? (
                   <Tag color={complianceColor(product.compliance_percentage)}>
                     {product.compliance_percentage}%
                   </Tag>
@@ -240,16 +253,17 @@ const ProductDetail: React.FC = () => {
               </Descriptions.Item>
               <Descriptions.Item label="Primary Owner">
                 <Tag color="blue">
-                  {DEPARTMENTS[product.primary_owner_department as keyof typeof DEPARTMENTS] || product.primary_owner_department}
+                  {DEPARTMENTS[product?.primary_owner_department as keyof typeof DEPARTMENTS] || product?.primary_owner_department || '-'}
                 </Tag>
               </Descriptions.Item>
               <Descriptions.Item label="Secondary Access">
                 <Space wrap>
-                  {(Array.isArray(product.secondary_access_departments) ? product.secondary_access_departments : [])?.map(dept => (
+                  {(Array.isArray(product?.secondary_access_departments) ? product.secondary_access_departments : [])?.map(dept => (
                     <Tag key={dept} color="green">
                       {DEPARTMENTS[dept as keyof typeof DEPARTMENTS] || dept}
                     </Tag>
                   ))}
+                  {(!product?.secondary_access_departments || product.secondary_access_departments.length === 0) && '-'}
                 </Space>
               </Descriptions.Item>
             </Descriptions>
@@ -353,10 +367,10 @@ const ProductDetail: React.FC = () => {
                 </Col>
                 <Col span={8}>
                   <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: 24, fontWeight: 'bold', color: complianceColor(product.compliance_percentage || 0) }}>
+                    <div style={{ fontSize: 24, fontWeight: 'bold', color: complianceColor(product?.compliance_percentage || 0) }}>
                       <BarChartOutlined />
                     </div>
-                    <div>{product.compliance_percentage || 0}%</div>
+                    <div>{product?.compliance_percentage || 0}%</div>
                     <div style={{ fontSize: 12, color: '#666' }}>Compliance</div>
                   </div>
                 </Col>
@@ -397,16 +411,30 @@ const ProductDetail: React.FC = () => {
             <Card title="Timeline" size="small">
               <Descriptions column={1} size="small">
                 <Descriptions.Item label="Created">
-                  {new Date(product.created_at).toLocaleDateString()}
+                  {product?.created_at ? new Date(product.created_at).toLocaleDateString('vi-VN') : 'N/A'}
                 </Descriptions.Item>
                 <Descriptions.Item label="Last Updated">
-                  {new Date(product.updated_at).toLocaleDateString()}
+                  {product?.updated_at ? new Date(product.updated_at).toLocaleDateString('vi-VN') : 'N/A'}
                 </Descriptions.Item>
               </Descriptions>
             </Card>
           </Space>
         </Col>
       </Row>
+
+      {/* Completeness Check Section */}
+      {showCompleteness && (
+        <Row style={{ marginTop: 24 }}>
+          <Col span={24}>
+            <Card title="Product Completeness Analysis">
+              <ProductCompleteness 
+                productId={id} 
+                showBatchActions={false}
+              />
+            </Card>
+          </Col>
+        </Row>
+      )}
     </div>
   );
 };

@@ -120,6 +120,17 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('products/{product}/approve', [ProductController::class, 'approve']);
     Route::post('products/{product}/reject', [ProductController::class, 'reject']);
     
+    // Product related data routes
+    Route::get('products/{product}/documents', [ProductController::class, 'getDocuments']);
+    Route::get('products/{product}/alerts', [ProductController::class, 'getAlerts']);
+    Route::get('products/{product}/batches', [BatchController::class, 'byProduct']);
+    
+    // Product completeness routes
+    Route::get('products/{product}/completeness', [\App\Http\Controllers\Api\ProductCompletenessController::class, 'checkProduct']);
+    Route::post('products/completeness/batch-check', [\App\Http\Controllers\Api\ProductCompletenessController::class, 'batchCheck']);
+    Route::get('products/completeness/statistics', [\App\Http\Controllers\Api\ProductCompletenessController::class, 'getStatistics']);
+    Route::get('products/completeness/low-compliance', [\App\Http\Controllers\Api\ProductCompletenessController::class, 'getLowCompliance']);
+    
     // Document routes
     Route::apiResource('documents', DocumentController::class);
     Route::post('documents/{document}/approve', [DocumentController::class, 'approve']);

@@ -24,7 +24,8 @@ import {
   EditOutlined,
   DeleteOutlined,
   EyeOutlined,
-  FilterOutlined
+  FilterOutlined,
+  BarChartOutlined
 } from '@ant-design/icons';
 import { Product, ProductFilters, DEPARTMENTS, PRODUCT_STATUSES } from '../../types';
 import ProductService from '../../services/product';
@@ -264,6 +265,12 @@ const Products: React.FC = () => {
               loading={loading}
             >
               Refresh
+            </Button>
+            <Button 
+              icon={<BarChartOutlined />} 
+              onClick={() => navigate('/products/completeness')}
+            >
+              Kiểm tra Completeness
             </Button>
             {canCreateProduct() && (
               <Button 
